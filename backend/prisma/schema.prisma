@@ -1,0 +1,142 @@
+// ─── Prisma Schema for VoiceTally ─────────────────────────────────────────
+// Double-entry accounting engine with full chart of accounts,
+// journal entries, and person-linked accounts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum AccountSubtype {
+  CASH_BANK
+  PERSON
+  EXPENSE_CATEGORY
+  INCOME_CATEGORY
+  EQUITY_CAPITAL
+}
+
+enum CashFlowCategory {
+  OPERATING
+  INVESTING
+  FINANCING
+  NONE
+}
+
+enum VoucherType {
+  PAYMENT
+  RECEIPT
+  JOURNAL
+  CONTRA
+}
+
+enum EntrySource {
+  VOICE
+  MANUAL
+}
+
+// ─── User & Session ──────────────────────────────────────────────────────
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String
+  name           String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  accounts       Account[]
+  journalEntries JournalEntry[]
+  people         Person[]
+  sessions       Session[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─── Chart of Accounts ───────────────────────────────────────────────────
+
+model Account {
+  id               String           @id @default(uuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  type             AccountType
+  subtype          AccountSubtype
+  personId         String?
+  person           Person?          @relation(fields: [personId], references: [id])
+  cashFlowCategory CashFlowCategory @default(NONE)
+  cachedBalance    Decimal          @default(0) @db.Decimal(15, 2)
+  postedThrough    DateTime?
+  createdAt        DateTime         @default(now())
+  journalLines     JournalLine[]
+
+  @@unique([userId, name])
+  @@index([userId, type])
+}
+
+// ─── Journal (Book of Original Entry) ────────────────────────────────────
+
+model JournalEntry {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime    @db.Date
+  narration   String
+  voucherType VoucherType
+  source      EntrySource @default(MANUAL)
+  postedAt    DateTime?
+  createdAt   DateTime    @default(now())
+  lines       JournalLine[]
+
+  @@index([userId, date])
+}
+
+model JournalLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  debitAmount    Decimal      @default(0) @db.Decimal(15, 2)
+  creditAmount   Decimal      @default(0) @db.Decimal(15, 2)
+
+  @@index([accountId])
+  @@index([journalEntryId])
+}
+
+// ─── People (Contacts / Counterparties) ──────────────────────────────────
+
+model Person {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  address   String?
+  label     String?
+  createdAt DateTime  @default(now())
+  accounts  Account[]
+
+  @@index([userId, name])
+}

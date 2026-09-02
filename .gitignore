@@ -1,0 +1,28 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+
+# Prisma
+backend/prisma/migrations/**/migration_lock.toml
+
+# Redis
+dump.rdb
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Generated Prisma client
+backend/node_modules/.prisma/
