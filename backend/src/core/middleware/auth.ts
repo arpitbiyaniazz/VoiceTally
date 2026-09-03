@@ -31,7 +31,9 @@ export function authMiddleware(
       throw new AuthenticationError('Missing token');
     }
 
-    const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
+    const decoded = jwt.verify(token, config.jwtSecret, {
+      algorithms: ['HS256'],
+    }) as JwtPayload;
 
     // Attach user info to request
     (req as AuthenticatedRequest).userId = decoded.userId;
