@@ -18,7 +18,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "qa": "tsx scripts/qa-agent.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.8.0",
