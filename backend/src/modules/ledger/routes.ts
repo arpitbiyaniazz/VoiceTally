@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { LedgerController } from './controllers/LedgerController.js';
 import { AccountController } from './controllers/AccountController.js';
 import { PersonController } from './controllers/PersonController.js';
+import { ReportsController } from './controllers/ReportsController.js';
 import { authMiddleware } from '../../core/middleware/auth.js';
 
 const router = Router();
@@ -28,5 +29,11 @@ router.post('/people', PersonController.createPerson);
 router.get('/people', PersonController.listPeople);
 router.get('/people/search', PersonController.searchPeople);
 router.get('/people/:personId', PersonController.getPerson);
+
+// ─── Financial Reports ───────────────────────────────────────────────────
+router.get('/reports/trial-balance', ReportsController.getTrialBalance);
+router.get('/reports/profit-loss', ReportsController.getProfitAndLoss);
+router.get('/reports/balance-sheet', ReportsController.getBalanceSheet);
+router.get('/reports/cash-flow', ReportsController.getCashFlowStatement);
 
 export { router as ledgerRoutes };

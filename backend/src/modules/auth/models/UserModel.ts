@@ -46,21 +46,24 @@ export const UserModel = {
     password: string,
     name: string
   ): Promise<UserWithoutPassword> {
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    const trimmedName = name ? name.trim() : '';
+
     // Validate
-    if (!email || !email.includes('@')) {
-      throw new ValidationError('Invalid email', { email: ['Must be a valid email address'] });
+    if (!normalizedEmail || !normalizedEmail.includes('@') || normalizedEmail.length > 255) {
+      throw new ValidationError('Invalid email', { email: ['Must be a valid email address under 255 characters'] });
     }
-    if (!password || password.length < 8) {
+    if (!password || password.length < 8 || password.length > 128) {
       throw new ValidationError('Invalid password', {
-        password: ['Must be at least 8 characters'],
+        password: ['Must be between 8 and 128 characters'],
       });
     }
-    if (!name || name.trim().length === 0) {
-      throw new ValidationError('Invalid name', { name: ['Name is required'] });
+    if (!trimmedName || trimmedName.length === 0 || trimmedName.length > 100) {
+      throw new ValidationError('Invalid name', { name: ['Name must be between 1 and 100 characters'] });
     }
 
     // Check uniqueness
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       throw new ConflictError('A user with this email already exists');
     }
@@ -72,9 +75,9 @@ export const UserModel = {
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
-          email,
+          email: normalizedEmail,
           passwordHash,
-          name: name.trim(),
+          name: trimmedName,
         },
       });
 
@@ -103,7 +106,12 @@ export const UserModel = {
     email: string,
     password: string
   ): Promise<UserWithoutPassword> {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email ? email.trim().toLowerCase() : '';
+    if (!normalizedEmail || !password || password.length > 128) {
+      throw new AuthenticationError('Invalid email or password');
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
       throw new AuthenticationError('Invalid email or password');
     }
@@ -130,7 +138,7 @@ export const UserModel = {
     const accessToken = jwt.sign(
       { userId: user.id, email: user.email },
       config.jwtSecret,
-      { expiresIn: parseExpiry(config.jwtAccessExpiry) }
+      { algorithm: 'HS256', expiresIn: parseExpiry(config.jwtAccessExpiry) }
     );
 
     // Generate refresh token (long-lived, stored in DB)
@@ -188,7 +196,7 @@ export const UserModel = {
     const accessToken = jwt.sign(
       { userId: session.user.id, email: session.user.email },
       config.jwtSecret,
-      { expiresIn: config.jwtAccessExpiry }
+      { algorithm: 'HS256', expiresIn: parseExpiry(config.jwtAccessExpiry) }
     );
 
     return { accessToken, refreshToken: newRefreshToken };
