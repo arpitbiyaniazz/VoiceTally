@@ -34,6 +34,38 @@ export type VoucherInput = PaymentReceiptInput | ContraInput | JournalInput;
 
 // ─── Posting Engine (Deterministic — no LLM, no guessing) ────────────────
 
+function parseSafeAmount(val: any, field = 'amount'): Decimal {
+  if (val === undefined || val === null || val === '') {
+    throw new ValidationError(`${field} is required`, {
+      [field]: ['Amount is required'],
+    });
+  }
+  let d: Decimal;
+  try {
+    d = new Decimal(val);
+  } catch {
+    throw new ValidationError(`Invalid ${field}: must be a valid number`, {
+      [field]: ['Must be a valid numeric amount'],
+    });
+  }
+  if (d.isNaN() || !d.isFinite()) {
+    throw new ValidationError(`Invalid ${field}: must be a finite number`, {
+      [field]: ['Must be a finite number'],
+    });
+  }
+  if (d.lte(0)) {
+    throw new ValidationError('Amount must be positive', {
+      [field]: ['Must be greater than zero'],
+    });
+  }
+  if (d.gt('1000000000000')) {
+    throw new ValidationError('Amount exceeds maximum allowed limit', {
+      [field]: ['Cannot exceed 1,000,000,000,000'],
+    });
+  }
+  return d;
+}
+
 /**
  * Stateless service that maps semantic voucher input to balanced journal lines.
  * This is the deterministic heart of the system.
@@ -81,12 +113,10 @@ export const PostingEngine = {
    * Credit the cash/bank account.
    */
   buildPaymentLines(input: PaymentReceiptInput): JournalLineInput[] {
-    const amount = new Decimal(input.amount);
+    const amount = parseSafeAmount(input.amount, 'amount');
 
-    if (amount.isZero() || amount.isNegative()) {
-      throw new ValidationError('Amount must be positive', {
-        amount: ['Must be greater than zero'],
-      });
+    if (!input.cashAccountId || !input.counterAccountId) {
+      throw new ValidationError('Cash account and counter account are required');
     }
 
     if (input.cashAccountId === input.counterAccountId) {
@@ -113,12 +143,10 @@ export const PostingEngine = {
    * Credit the counter-account (income, person, etc.)
    */
   buildReceiptLines(input: PaymentReceiptInput): JournalLineInput[] {
-    const amount = new Decimal(input.amount);
+    const amount = parseSafeAmount(input.amount, 'amount');
 
-    if (amount.isZero() || amount.isNegative()) {
-      throw new ValidationError('Amount must be positive', {
-        amount: ['Must be greater than zero'],
-      });
+    if (!input.cashAccountId || !input.counterAccountId) {
+      throw new ValidationError('Cash account and counter account are required');
     }
 
     if (input.cashAccountId === input.counterAccountId) {
@@ -145,12 +173,10 @@ export const PostingEngine = {
    * Credit the source account.
    */
   buildContraLines(input: ContraInput): JournalLineInput[] {
-    const amount = new Decimal(input.amount);
+    const amount = parseSafeAmount(input.amount, 'amount');
 
-    if (amount.isZero() || amount.isNegative()) {
-      throw new ValidationError('Amount must be positive', {
-        amount: ['Must be greater than zero'],
-      });
+    if (!input.fromAccountId || !input.toAccountId) {
+      throw new ValidationError('Source and destination accounts are required');
     }
 
     if (input.fromAccountId === input.toAccountId) {
