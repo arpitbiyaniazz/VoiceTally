@@ -38,14 +38,20 @@ export const AccountModel = {
     userId: string,
     input: CreateAccountInput
   ): Promise<Account> {
-    // Validate person linkage
-    if (input.subtype === 'PERSON' && !input.personId) {
-      throw new ValidationError('Person accounts require a personId', {
-        personId: ['Required for PERSON subtype accounts'],
+    // Validate person linkage & ownership (Cross-tenant IDOR prevention)
+    if (input.subtype === 'PERSON') {
+      if (!input.personId) {
+        throw new ValidationError('Person accounts require a personId', {
+          personId: ['Required for PERSON subtype accounts'],
+        });
+      }
+      const person = await prisma.person.findFirst({
+        where: { id: input.personId, userId },
       });
-    }
-
-    if (input.subtype !== 'PERSON' && input.personId) {
+      if (!person) {
+        throw new NotFoundError('Person', input.personId);
+      }
+    } else if (input.personId) {
       throw new ValidationError('Only PERSON subtype accounts can have a personId', {
         personId: ['Not allowed for this account subtype'],
       });

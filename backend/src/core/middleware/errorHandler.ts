@@ -21,6 +21,18 @@ export function errorHandler(
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 
+  // Malformed JSON body handling
+  if ((err as any).type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err)) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_JSON',
+        message: 'Malformed JSON payload in request body',
+      },
+    });
+    return;
+  }
+
   // Operational errors — safe to expose to the client
   if (err instanceof AppError && err.isOperational) {
     const response: ApiResponse = {
