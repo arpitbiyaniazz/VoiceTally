@@ -72,6 +72,7 @@ model Session {
   createdAt    DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
 }
 
 // ─── Chart of Accounts ───────────────────────────────────────────────────
@@ -93,6 +94,8 @@ model Account {
 
   @@unique([userId, name])
   @@index([userId, type])
+  @@index([userId, subtype])
+  @@index([personId])
 }
 
 // ─── Journal (Book of Original Entry) ────────────────────────────────────
@@ -110,6 +113,8 @@ model JournalEntry {
   lines       JournalLine[]
 
   @@index([userId, date])
+  @@index([userId, postedAt])
+  @@index([userId, voucherType])
 }
 
 model JournalLine {
@@ -123,6 +128,7 @@ model JournalLine {
 
   @@index([accountId])
   @@index([journalEntryId])
+  @@index([accountId, debitAmount, creditAmount])
 }
 
 // ─── People (Contacts / Counterparties) ──────────────────────────────────
