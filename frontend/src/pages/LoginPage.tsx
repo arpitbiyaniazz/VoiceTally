@@ -13,6 +13,7 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLoading(true);
     try {
@@ -26,6 +27,7 @@ export function LoginPage() {
   };
 
   const handleDemoLogin = async () => {
+    if (loading) return;
     setEmail('demo@voicetally.app');
     setPassword('demopass123');
     setError('');
