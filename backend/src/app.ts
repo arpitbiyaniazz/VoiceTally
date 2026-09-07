@@ -10,8 +10,10 @@ import { redis } from './core/redis/client.js';
 import { authRoutes } from './modules/auth/index.js';
 import { ledgerRoutes } from './modules/ledger/index.js';
 import { voiceRoutes } from './modules/voice/index.js';
+import { integrationRoutes } from './modules/integrations/routes.js';
 
 const app = express();
+
 
 // ─── Global Middleware ────────────────────────────────────────────────────
 
@@ -29,12 +31,12 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
       if (!origin) return callback(null, true);
       if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error('Blocked by CORS policy'));
+      return callback(null, false);
     },
     credentials: true,
   })
@@ -88,6 +90,8 @@ app.get('/ready', async (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/integrations', integrationRoutes);
+
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────
 

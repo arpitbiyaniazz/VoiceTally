@@ -11,6 +11,8 @@
  * 7. Rate limiter & API error contract validation
  */
 
+import { redis } from '../src/core/redis/client.js';
+
 const API_BASE = process.env.API_BASE || 'http://localhost:3001/api';
 
 interface TestResult {
@@ -62,6 +64,14 @@ async function runQASubAgent() {
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
   console.log('║        VoiceTally Automated QA & Bug-Hunting Agent           ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
+
+  // Reset rate limits in Redis for QA execution run
+  try {
+    const keys = await redis.keys('rl:*');
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+  } catch {}
 
   const testEmail = `qa_agent_${Date.now()}@voicetally.app`;
   const testPassword = 'Password123!';
@@ -443,6 +453,10 @@ async function runQASubAgent() {
   console.log(`║   QA Subagent Audit Complete: ${passed}/${total} Passed (${failed} Failed)        ║`);
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
+  try {
+    await redis.quit();
+  } catch {}
+
   if (failed > 0) {
     console.error('Failures detected:');
     results.filter((r) => !r.passed).forEach((f) => {
@@ -459,4 +473,3 @@ runQASubAgent().catch((err) => {
   console.error('Fatal QA agent error:', err);
   process.exit(1);
 });
-
