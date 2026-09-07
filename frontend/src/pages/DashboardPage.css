@@ -1,0 +1,336 @@
+.dashboard-page {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* Hero Net Worth & Voice Banner */
+.dashboard-hero-banner {
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.hero-stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-stat-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.hero-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.hero-stat-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.hero-status-pill {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.hero-status-pill.surplus {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.hero-status-pill.deficit {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.hero-stat-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.hero-voice-shortcut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(147, 51, 234, 0.2));
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  max-width: 440px;
+}
+
+.hero-voice-shortcut:hover {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.35), rgba(147, 51, 234, 0.35));
+  border-color: rgba(168, 85, 247, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(129, 140, 248, 0.25);
+}
+
+.hero-voice-orb {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #9333ea);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: 0 0 16px rgba(147, 51, 234, 0.4);
+  flex-shrink: 0;
+}
+
+.hero-voice-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-voice-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.hero-voice-prompt {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.hero-voice-arrow {
+  color: #a5b4fc;
+  font-size: 1.2rem;
+  transition: transform var(--transition-fast);
+}
+
+.hero-voice-shortcut:hover .hero-voice-arrow {
+  transform: translateX(4px);
+  color: #ffffff;
+}
+
+/* Quick Action Tiles */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md);
+}
+
+.quick-action-card {
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  border-radius: var(--radius-md);
+}
+
+.quick-action-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.quick-action-icon.payment {
+  background: var(--color-debit-bg);
+  border: 1px solid var(--color-debit-border);
+}
+
+.quick-action-icon.receipt {
+  background: var(--color-credit-bg);
+  border: 1px solid var(--color-credit-border);
+}
+
+.quick-action-icon.contra {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+}
+
+.quick-action-icon.people {
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+.quick-action-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-action-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.quick-action-desc {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* 4 KPI Metric Cards */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-md);
+}
+
+.dashboard-card {
+  padding: var(--space-lg);
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.dashboard-card:nth-child(1)::before { background: linear-gradient(90deg, #38bdf8, #60a5fa); }
+.dashboard-card:nth-child(2)::before { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+.dashboard-card:nth-child(3)::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.dashboard-card:nth-child(4)::before { background: linear-gradient(90deg, #f97316, #fb923c); }
+
+.dashboard-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+
+.dashboard-card-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.dashboard-card-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-xs);
+}
+
+.dashboard-card-value.assets { color: #38bdf8; }
+.dashboard-card-value.liabilities { color: #fb7185; }
+.dashboard-card-value.income { color: #34d399; }
+.dashboard-card-value.expenses { color: #fb923c; }
+
+.dashboard-card-desc {
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Account Balances Table Header */
+.accounts-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.accounts-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.filter-pill-group {
+  display: flex;
+  background: var(--color-bg-tertiary);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  gap: 2px;
+}
+
+.filter-pill {
+  padding: 5px 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-pill:hover {
+  color: var(--color-text-primary);
+}
+
+.filter-pill.active {
+  background: var(--color-bg-elevated);
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .dashboard-hero-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hero-voice-shortcut {
+    width: 100%;
+    max-width: none;
+  }
+}
