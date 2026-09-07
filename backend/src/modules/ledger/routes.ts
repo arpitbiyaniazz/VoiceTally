@@ -3,6 +3,7 @@ import { LedgerController } from './controllers/LedgerController.js';
 import { AccountController } from './controllers/AccountController.js';
 import { PersonController } from './controllers/PersonController.js';
 import { ReportsController } from './controllers/ReportsController.js';
+import { AnalyticsController } from './controllers/AnalyticsController.js';
 import { authMiddleware } from '../../core/middleware/auth.js';
 
 const router = Router();
@@ -18,6 +19,7 @@ router.get('/accounts/:accountId', AccountController.getAccount);
 
 // ─── Vouchers / Journal Entries ───────────────────────────────────────────
 router.post('/vouchers', LedgerController.postVoucher);
+router.post('/reconcile', LedgerController.reconcile);
 router.get('/entries', LedgerController.listJournalEntries);
 router.get('/entries/:entryId', LedgerController.getJournalEntry);
 
@@ -36,4 +38,11 @@ router.get('/reports/profit-loss', ReportsController.getProfitAndLoss);
 router.get('/reports/balance-sheet', ReportsController.getBalanceSheet);
 router.get('/reports/cash-flow', ReportsController.getCashFlowStatement);
 
+// ─── Visual BI & Analytics ────────────────────────────────────────────────
+router.get('/analytics/summary', AnalyticsController.getSummary);
+router.get('/analytics/trends', AnalyticsController.getTrends);
+router.get('/analytics/categories', AnalyticsController.getCategoryBreakdown);
+router.get('/analytics/sankey', AnalyticsController.getSankeyFlow);
+
 export { router as ledgerRoutes };
+

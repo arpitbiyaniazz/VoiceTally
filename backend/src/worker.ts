@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { createRedisConnection } from './core/redis/client.js';
 import { LEDGER_POSTING_QUEUE } from './core/queue/ledgerPostingQueue.js';
 import { ledgerPostingProcessor } from './workers/ledgerPostingProcessor.js';
+import { prisma } from './core/database/prisma.js';
 
 /**
  * Worker entry point — separate Node.js process from the API server.
@@ -46,9 +47,18 @@ worker.on('ready', () => {
 
 async function shutdown() {
   console.log('[Worker] Shutting down gracefully...');
-  await worker.close();
-  await connection.quit();
-  process.exit(0);
+  try {
+    await worker.close();
+    await Promise.all([
+      prisma.$disconnect(),
+      connection.quit(),
+    ]);
+    console.log('[Worker] Worker, DB and Redis connections closed cleanly.');
+    process.exit(0);
+  } catch (err) {
+    console.error('[Worker] Error during shutdown:', err);
+    process.exit(1);
+  }
 }
 
 process.on('SIGINT', shutdown);
