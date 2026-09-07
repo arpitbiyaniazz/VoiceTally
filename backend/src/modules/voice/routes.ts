@@ -18,4 +18,7 @@ const voiceRateLimit = rateLimiter({
 // Process natural language voice transcript or text query/command
 router.post('/process', voiceRateLimit, VoiceController.process);
 
+// Get Voice AI telemetry & observability metrics
+router.get('/metrics', VoiceController.getMetrics);
+
 export { router as voiceRoutes };
