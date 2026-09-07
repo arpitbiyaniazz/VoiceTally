@@ -103,6 +103,8 @@ export function VoucherEntryPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setError('');
     setSuccess('');
     setLoading(true);
