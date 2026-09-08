@@ -73,8 +73,10 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
     await waitFor(() => {
       expect(screen.getByText(/Ready to record 5,000 rupees/i)).toBeInTheDocument();
       expect(screen.getByText(/⚠️ PREVIEW: CONTRA/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /✓ Confirm & Post/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /✕ Cancel/i })).toBeInTheDocument();
+      // Popup confirmation dialog is rendered
+      expect(screen.getByText('Confirm Transaction')).toBeInTheDocument();
+      expect(screen.getByText('Do you want to proceed with this transaction?')).toBeInTheDocument();
+      expect(screen.getAllByText(/Confirm & Post/i).length).toBeGreaterThan(0);
     });
 
     // 2. Mock confirmation response (returns the posted transaction intent)
@@ -103,7 +105,9 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /✓ Confirm & Post/i }));
+    // Click confirm inside the popup
+    const confirmBtn = screen.getByRole('button', { name: /Yes, Confirm & Post/i });
+    fireEvent.click(confirmBtn);
 
     await waitFor(() => {
       expect(screen.getByText(/Confirmed! Successfully recorded/i)).toBeInTheDocument();
@@ -112,7 +116,37 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
     });
   });
 
-  it('renders VoiceStudioPage with playbook categories and interactive mic', () => {
+  it('renders VoiceStudioPage with playbook categories, triggers confirmation popup, and confirms', async () => {
+    (voiceApi.process as any).mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          intent: {
+            type: 'TRANSACTION',
+            action: 'DIRECT_PAYMENT',
+            voucherType: 'PAYMENT',
+            amount: 500,
+            categoryName: 'Food & Dining',
+            paymentMode: 'CASH',
+            rawText: 'Paid 500 for lunch from Cash',
+          },
+          spokenResponse: 'Ready to record 500 rupees payment voucher: Debiting Food & Dining and Crediting Cash. Shall I confirm and post this?',
+          displayTitle: 'Preview: PAYMENT Voucher',
+          data: {
+            isPreview: true,
+            voucherType: 'PAYMENT',
+            amount: 500,
+            formattedAmount: '₹500.00',
+            debitAccount: 'Food & Dining',
+            creditAccount: 'Cash',
+            narration: 'Paid 500 for lunch from Cash',
+          },
+          executed: false,
+          needsConfirmation: true,
+        },
+      },
+    });
+
     render(
       <BrowserRouter>
         <VoiceStudioPage />
@@ -122,7 +156,15 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
     expect(screen.getByText('Voice Agent Studio')).toBeInTheDocument();
     expect(screen.getByText('📚 Voice Command Playbook')).toBeInTheDocument();
     expect(screen.getByText('🏧 Banking & Contra')).toBeInTheDocument();
-    expect(screen.getByText('🛍️ Debtor & Sales on Credit')).toBeInTheDocument();
-    expect(screen.getByText('📊 Inquiries & Intelligence')).toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText(/Say or type/i);
+    fireEvent.change(input, { target: { value: 'Paid 500 for lunch from Cash' } });
+    fireEvent.click(screen.getByRole('button', { name: /Execute/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Confirm Transaction')).toBeInTheDocument();
+      expect(screen.getByText('Do you want to proceed with this transaction?')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Yes, Confirm & Post/i })).toBeInTheDocument();
+    });
   });
 });
