@@ -67,12 +67,25 @@ export interface CashFlowReport {
   closingCashBalance: Decimal;
 }
 
+function toEndOfDay(d: Date): Date {
+  const res = new Date(d);
+  res.setHours(23, 59, 59, 999);
+  return res;
+}
+
+function toStartOfDay(d: Date): Date {
+  const res = new Date(d);
+  res.setHours(0, 0, 0, 0);
+  return res;
+}
+
 export const ReportsModel = {
   /**
    * Generates a Trial Balance as of a given date.
    * Proves that total debits equal total credits across the chart of accounts.
    */
   async getTrialBalance(userId: string, asOfDate: Date = new Date()): Promise<TrialBalanceReport> {
+    const endBound = toEndOfDay(asOfDate);
     const accounts = await prisma.account.findMany({
       where: { userId },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
@@ -83,13 +96,13 @@ export const ReportsModel = {
     let totalCredit = new Decimal(0);
 
     for (const account of accounts) {
-      // Aggregate journal lines up to asOfDate
+      // Aggregate journal lines up to asOfDate (including end of day)
       const lines = await prisma.journalLine.aggregate({
         where: {
           accountId: account.id,
           journalEntry: {
             userId,
-            date: { lte: asOfDate },
+            date: { lte: endBound },
           },
         },
         _sum: {
@@ -158,6 +171,9 @@ export const ReportsModel = {
     startDate: Date,
     endDate: Date
   ): Promise<ProfitAndLossReport> {
+    const startBound = toStartOfDay(startDate);
+    const endBound = toEndOfDay(endDate);
+
     const incomeAccounts = await prisma.account.findMany({
       where: { userId, type: 'INCOME' },
     });
@@ -175,7 +191,7 @@ export const ReportsModel = {
           accountId: acc.id,
           journalEntry: {
             userId,
-            date: { gte: startDate, lte: endDate },
+            date: { gte: startBound, lte: endBound },
           },
         },
         _sum: {
@@ -251,6 +267,7 @@ export const ReportsModel = {
    * Fundamental Accounting Equation: Assets = Liabilities + Equity (including Cumulative Retained Earnings)
    */
   async getBalanceSheet(userId: string, asOfDate: Date = new Date()): Promise<BalanceSheetReport> {
+    const endBound = toEndOfDay(asOfDate);
     const accounts = await prisma.account.findMany({
       where: { userId },
     });
@@ -276,7 +293,7 @@ export const ReportsModel = {
           accountId: acc.id,
           journalEntry: {
             userId,
-            date: { lte: asOfDate },
+            date: { lte: endBound },
           },
         },
         _sum: {
@@ -372,6 +389,9 @@ export const ReportsModel = {
     startDate: Date,
     endDate: Date
   ): Promise<CashFlowReport> {
+    const startBound = toStartOfDay(startDate);
+    const endBound = toEndOfDay(endDate);
+
     const cashBankAccounts = await prisma.account.findMany({
       where: { userId, subtype: 'CASH_BANK' },
     });
@@ -385,7 +405,7 @@ export const ReportsModel = {
           accountId: cashAcc.id,
           journalEntry: {
             userId,
-            date: { lt: startDate },
+            date: { lt: startBound },
           },
         },
         _sum: {
@@ -402,7 +422,7 @@ export const ReportsModel = {
     const entries = await prisma.journalEntry.findMany({
       where: {
         userId,
-        date: { gte: startDate, lte: endDate },
+        date: { gte: startBound, lte: endBound },
         lines: {
           some: {
             accountId: { in: Array.from(cashAccountIds) },
