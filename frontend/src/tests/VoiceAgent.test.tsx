@@ -116,7 +116,7 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
     });
   });
 
-  it('renders VoiceStudioPage with playbook categories, triggers confirmation popup, and confirms', async () => {
+  it('renders VoiceStudioPage, triggers confirmation popup, and confirms', async () => {
     (voiceApi.process as any).mockResolvedValueOnce({
       data: {
         success: true,
@@ -154,8 +154,6 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
     );
 
     expect(screen.getByText('Voice Agent Studio')).toBeInTheDocument();
-    expect(screen.getByText('📚 Voice Command Playbook')).toBeInTheDocument();
-    expect(screen.getByText('🏧 Banking & Contra')).toBeInTheDocument();
 
     const input = screen.getByPlaceholderText(/Say or type/i);
     fireEvent.change(input, { target: { value: 'Paid 500 for lunch from Cash' } });

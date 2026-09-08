@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { voiceApi, type VoiceProcessResponse } from '../api/voice';
 import '../components/voice/VoiceAgentModal.css';
+import './VoiceStudioPage.css';
 
 interface LogItem {
   id: string;
@@ -105,45 +106,11 @@ export const VoiceStudioPage: React.FC = () => {
     }
   };
 
-  const commandPlaybook = [
-    {
-      category: '🏧 Banking & Contra',
-      description: 'Cash withdrawals, deposits, and bank transfers',
-      examples: [
-        { label: 'Bank Withdrawal', text: 'i made the withdrawal from the bank 10000' },
-        { label: 'Cash Deposit', text: 'deposited 8000 cash into bank' },
-      ],
-    },
-    {
-      category: '🛍️ Debtor & Sales on Credit',
-      description: 'Track customer purchases and receivables',
-      examples: [
-        { label: 'Client Credit Purchase', text: 'Rahul bought laptop for 45000' },
-        { label: 'Cash Collection', text: 'i take 5000 muny from Rahul in cash' },
-        { label: 'Bank Settlement', text: 'Vikram paid 15000 via bank transfer' },
-      ],
-    },
-    {
-      category: '💳 Payments & Creditors',
-      description: 'Vendor bills, office expenses, and supplier credit',
-      examples: [
-        { label: 'Direct Expense', text: 'paid 3500 for electricity bill using Bank' },
-        { label: 'Cash Expense', text: 'spent 650 on office snacks using cash' },
-        { label: 'Vendor Credit Purchase', text: 'purchased 20000 inventory from Sharma on credit' },
-      ],
-    },
-    {
-      category: '📊 Inquiries & Intelligence',
-      description: 'Ask instant queries on balances, debts, and net worth',
-      examples: [
-        { label: 'Bank Balance', text: 'what is the bank balance' },
-        { label: 'Cash In Hand', text: 'how much cash do i have' },
-        { label: 'Customer Balance', text: 'how much does Rahul owe me' },
-        { label: 'Net Worth', text: 'what is my net worth' },
-        { label: 'Monthly Expenses', text: 'how much did i spend this month' },
-      ],
-    },
-  ];
+  const handlePromptClick = (text: string) => {
+    clearError();
+    setInputVal(text);
+    handleProcessText(text);
+  };
 
   const filteredLogs = logs.filter((l) => {
     if (activeTab === 'transactions') return l.response.intent.type === 'TRANSACTION';
@@ -152,88 +119,75 @@ export const VoiceStudioPage: React.FC = () => {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)', paddingBottom: 'var(--space-2xl)' }}>
+    <div className="page voice-studio-page">
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span>🎙️</span> Voice Agent Studio
-          </h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: '0.95rem' }}>
+      <header className="voice-studio-header">
+        <div className="voice-studio-title-wrap">
+          <div className="voice-studio-title-row">
+            <h1 className="voice-studio-title">
+              <span>🎙️</span> Voice Agent Studio
+            </h1>
+            <span className="voice-live-pill">
+              <span className="voice-live-dot" />
+              Live Ledger AI
+            </span>
+          </div>
+          <p className="voice-studio-subtitle">
             Natural language conversational interface powered by zero-discrepancy double-entry ledgers.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+        <div className="voice-studio-header-actions">
           <button
-            className={`voice-btn-icon ${voiceEnabled ? 'active' : ''}`}
+            className={`voice-audio-toggle-btn ${voiceEnabled ? 'active' : ''}`}
             onClick={toggleVoiceAudio}
             title={voiceEnabled ? 'Mute Speech Synthesis' : 'Unmute Speech Synthesis'}
             type="button"
-            style={{ padding: '8px 16px', borderRadius: 'var(--radius-md)', fontWeight: 600 }}
           >
-            {voiceEnabled ? '🔊 Audio Speech Synthesis: ON' : '🔇 Audio: OFF'}
+            <span>{voiceEnabled ? '🔊' : '🔇'}</span>
+            <span>{voiceEnabled ? 'Audio Speech Synthesis: ON' : 'Audio Speech Synthesis: OFF'}</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Main Studio Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 'var(--space-xl)' }}>
-        
-        {/* Left Column: Live Mic Console */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-          <div
-            style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-xl)',
-              padding: 'var(--space-xl)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Background Glow */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-50px',
-                width: '200px',
-                height: '200px',
-                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%)',
-                pointerEvents: 'none',
-              }}
-            />
+      {/* 2-Column Workstation Grid */}
+      <div className="voice-studio-grid">
+        {/* Left Column: Command & Voice Cockpit */}
+        <section className="voice-studio-cockpit">
+          {/* Main Hero Dictation Card */}
+          <div className="voice-cockpit-hero">
+            <div className="voice-cockpit-glow" />
 
-            <div style={{ marginBottom: 'var(--space-md)' }}>
+            <div className="voice-mic-trigger-wrap">
+              {isListening && <div className="voice-mic-ripple" />}
               <button
                 type="button"
-                className={`voice-mic-main-btn ${isListening ? 'listening' : ''}`}
+                className={`voice-cockpit-mic-btn ${isListening ? 'listening' : ''}`}
                 onClick={handleMicToggle}
-                style={{ width: '84px', height: '84px', fontSize: '2.2rem', margin: '0 auto' }}
-                title={isListening ? 'Stop Listening' : 'Start Voice Input'}
+                title={isListening ? 'Stop Listening' : 'Start Voice Dictation'}
+                aria-label={isListening ? 'Stop Listening' : 'Start Voice Dictation'}
               >
                 {isListening ? '⏹' : '🎙️'}
               </button>
             </div>
 
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 6px 0', color: 'var(--color-text-primary)' }}>
-              {isListening ? 'Listening to your voice...' : 'Click Mic to Speak or Type Below'}
-            </h3>
-            
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: '0 0 var(--space-lg) 0', maxWidth: '420px' }}>
+            <h2 className="voice-cockpit-title">
               {isListening
-                ? 'Speak naturally: "I made the withdrawal from the bank 5000", "Rahul bought goods for 12000", or "What is my bank balance?"'
+                ? 'Listening to your voice...'
+                : isProcessing
+                ? 'Processing Command...'
+                : 'Click Mic to Speak or Type Below'}
+            </h2>
+
+            <p className="voice-cockpit-desc">
+              {isListening
+                ? 'Speak naturally: "Paid 500 for lunch from Cash", "Sharma paid 5000 in bank", or "What is my bank balance?"'
                 : isSupported
                 ? 'Web Speech API is ready. Press microphone to dictate or type commands.'
                 : 'Speech recognition not supported in this browser. Please type commands below.'}
             </p>
 
-            {/* Soundwave Animation during active state */}
+            {/* Soundwave Equalizer when active */}
             {(isListening || isSpeaking || isProcessing) && (
               <div style={{ marginBottom: 'var(--space-md)' }}>
                 <div className="voice-wave-container" style={{ height: '36px', gap: '6px' }}>
@@ -250,53 +204,19 @@ export const VoiceStudioPage: React.FC = () => {
 
             {/* Live Interim Transcript */}
             {isListening && interimTranscript && (
-              <div
-                style={{
-                  background: 'rgba(99, 102, 241, 0.1)',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#818cf8',
-                  fontSize: '0.9rem',
-                  fontStyle: 'italic',
-                  marginBottom: 'var(--space-md)',
-                  width: '100%',
-                }}
-              >
+              <div className="voice-cockpit-interim">
                 🎙️ "{interimTranscript}..."
               </div>
             )}
 
+            {/* Speech Error Banner */}
             {speechError && (
-              <div
-                style={{
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#fca5a5',
-                  fontSize: '0.85rem',
-                  marginBottom: 'var(--space-md)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
+              <div className="voice-cockpit-error">
                 <span>ℹ️ {speechError}</span>
                 <button
                   type="button"
                   onClick={clearError}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#fca5a5',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    padding: '2px 6px',
-                  }}
+                  className="voice-cockpit-error-dismiss"
                   title="Dismiss notification"
                 >
                   ✕
@@ -310,12 +230,12 @@ export const VoiceStudioPage: React.FC = () => {
                 e.preventDefault();
                 handleProcessText(inputVal);
               }}
-              style={{ width: '100%', display: 'flex', gap: 'var(--space-sm)' }}
+              className="voice-cockpit-input-form"
             >
-              <div className="voice-text-input-wrap" style={{ width: '100%' }}>
+              <div className="voice-cockpit-input-box">
                 <input
                   type="text"
-                  className="voice-text-input"
+                  className="voice-cockpit-input-field"
                   placeholder='Say or type e.g. "Paid 500 for lunch from Cash"...'
                   value={inputVal}
                   onChange={(e) => {
@@ -326,306 +246,253 @@ export const VoiceStudioPage: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  className="voice-send-btn"
+                  className="voice-cockpit-exec-btn"
                   disabled={!inputVal.trim() || isProcessing}
                 >
                   {isProcessing ? 'Processing...' : 'Execute'}
                 </button>
               </div>
             </form>
-
-            {/* Quick One-Tap Test Chips */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: 'var(--space-sm)', justifyContent: 'center', width: '100%' }}>
-              {[
-                'Paid 500 for lunch from Cash',
-                'Sharma paid 5000 in bank',
-                'Withdrew 2000 from Bank',
-                'What is my bank balance?',
-                'What is my net worth?',
-              ].map((sample, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    clearError();
-                    setInputVal(sample);
-                    handleProcessText(sample);
-                  }}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '20px',
-                    padding: '4px 10px',
-                    fontSize: '0.75rem',
-                    color: 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.borderColor = 'var(--color-primary)')}
-                  onMouseOut={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
-                >
-                  ⚡ {sample}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Activity / Transaction Stream */}
-          <div
-            style={{
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-xl)',
-              padding: 'var(--space-lg)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-md)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-                Live Execution Feed ({logs.length})
+          {/* Quick Voice Prompts */}
+          <div className="voice-prompts-card">
+            <div className="voice-prompts-header">
+              <h3 className="voice-prompts-title">
+                <span>⚡</span> Quick Voice Prompts
               </h3>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  className={`voice-btn-icon ${activeTab === 'all' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('all')}
-                  type="button"
-                >
-                  All
-                </button>
-                <button
-                  className={`voice-btn-icon ${activeTab === 'transactions' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('transactions')}
-                  type="button"
-                >
-                  Vouchers
-                </button>
-                <button
-                  className={`voice-btn-icon ${activeTab === 'queries' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('queries')}
-                  type="button"
-                >
-                  Queries
-                </button>
-              </div>
+              <span className="voice-prompts-hint">Click any prompt to run</span>
             </div>
 
-            <div
-              ref={terminalRef}
-              style={{
-                maxHeight: '400px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-md)',
-                paddingRight: '4px',
-              }}
-            >
-              {filteredLogs.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>
-                  No voice commands processed in this session yet. Speak or select a command from the playbook.
-                </div>
-              )}
-
-              {filteredLogs.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    background: 'var(--color-bg-tertiary)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: 'var(--space-md)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-primary)' }}>
-                      🗣️ "{item.transcript}"
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                      {item.timestamp.toLocaleTimeString()}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '0.88rem', color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
-                    {item.response.spokenResponse}
-                  </div>
-
-                  {/* Preview Transaction Details with Confirmation Actions */}
-                  {item.response.needsConfirmation && item.response.data && (
-                    <div className="voice-card preview" style={{ marginTop: 6 }}>
-                      <div className="voice-card-header">
-                        <span className="voice-card-badge preview">
-                          ⚠️ PREVIEW: {item.response.data.voucherType || 'VOUCHER'}
-                        </span>
-                        <span className="voice-card-amount">
-                          {item.response.data.formattedAmount || `₹${item.response.data.amount}`}
-                        </span>
-                      </div>
-                      <div className="voice-card-split">
-                        <div className="voice-card-split-item">
-                          <div className="label">Debit (Dr)</div>
-                          <div className="val">{item.response.data.debitAccount}</div>
-                        </div>
-                        <div className="voice-card-split-item">
-                          <div className="label">Credit (Cr)</div>
-                          <div className="val">{item.response.data.creditAccount}</div>
-                        </div>
-                      </div>
-                      {item.response.data.narration && (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
-                          📝 {item.response.data.narration}
-                        </div>
-                      )}
-                      <div className="voice-confirm-actions" style={{ marginTop: 8 }}>
-                        <button
-                          type="button"
-                          className="voice-confirm-btn"
-                          onClick={handleConfirmPending}
-                          disabled={isProcessing}
-                        >
-                          ✓ Confirm & Post
-                        </button>
-                        <button
-                          type="button"
-                          className="voice-cancel-btn"
-                          onClick={handleCancelPending}
-                          disabled={isProcessing}
-                        >
-                          ✕ Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Executed Transaction Details */}
-                  {item.response.executed && item.response.intent.type === 'TRANSACTION' && item.response.data && (
-                    <div className="voice-card-split" style={{ marginTop: 4 }}>
-                      <div className="voice-card-split-item">
-                        <div className="label">Voucher & Amount</div>
-                        <div className="val" style={{ color: '#38bdf8' }}>
-                          {item.response.data.voucherType} — {item.response.data.formattedAmount || `₹${item.response.data.amount}`}
-                        </div>
-                      </div>
-                      <div className="voice-card-split-item">
-                        <div className="label">Dr ➔ Cr Split</div>
-                        <div className="val">
-                          {item.response.data.debitAccount} (Dr) ➔ {item.response.data.creditAccount} (Cr)
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Query Details */}
-                  {item.response.intent.type === 'QUERY' && item.response.data && (
-                    <div className="voice-card-split" style={{ marginTop: 4 }}>
-                      <div className="voice-card-split-item">
-                        <div className="label">Metric Target</div>
-                        <div className="val">{item.response.displayTitle}</div>
-                      </div>
-                      <div className="voice-card-split-item">
-                        <div className="label">Balance / Value</div>
-                        <div className="val" style={{ color: '#22c55e' }}>
-                          {item.response.data.formattedBalance ||
-                            item.response.data.formattedNetWorth ||
-                            item.response.data.formattedTotalExpense ||
-                            item.response.data.formattedTotalRevenue ||
-                            `₹${item.response.data.amount || 0}`}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Voice Command Playbook */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          <div style={{ padding: '0 var(--space-xs)' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 4px 0' }}>
-              📚 Voice Command Playbook
-            </h3>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: 0 }}>
-              Click any sample prompt below to execute instantly or say it into your microphone.
-            </p>
-          </div>
-
-          {commandPlaybook.map((group, idx) => (
-            <div
-              key={idx}
-              style={{
-                background: 'var(--color-bg-secondary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-md)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-sm)',
-              }}
-            >
-              <div>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 2px 0', color: 'var(--color-text-primary)' }}>
-                  {group.category}
-                </h4>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-                  {group.description}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {group.examples.map((ex, exIdx) => (
+            <div className="voice-prompts-group">
+              <span className="voice-prompts-group-label">💳 Transactions & Vouchers</span>
+              <div className="voice-prompts-chips-wrap">
+                {[
+                  'Paid 500 for lunch from Cash',
+                  'Sharma paid 5000 in bank',
+                  'Withdrew 2000 from Bank',
+                  'Purchased office stationery for 1200 on credit',
+                ].map((sample, idx) => (
                   <button
-                    key={exIdx}
+                    key={idx}
                     type="button"
-                    onClick={() => handleProcessText(ex.text)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'var(--color-bg-tertiary)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '8px 12px',
-                      color: 'var(--color-text-secondary)',
-                      fontSize: '0.84rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all var(--transition-fast)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--color-primary)';
-                      e.currentTarget.style.color = 'var(--color-text-primary)';
-                      e.currentTarget.style.background = 'rgba(99, 102, 241, 0.08)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--color-border)';
-                      e.currentTarget.style.color = 'var(--color-text-secondary)';
-                      e.currentTarget.style.background = 'var(--color-bg-tertiary)';
-                    }}
+                    className="voice-prompt-pill"
+                    onClick={() => handlePromptClick(sample)}
                   >
-                    <span>🎙️ "{ex.text}"</span>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        color: 'var(--color-text-muted)',
-                      }}
-                    >
-                      {ex.label}
-                    </span>
+                    ⚡ {sample}
                   </button>
                 ))}
               </div>
             </div>
-          ))}
-        </div>
+
+            <div className="voice-prompts-group" style={{ marginTop: '4px' }}>
+              <span className="voice-prompts-group-label">📊 Balances & Financial Queries</span>
+              <div className="voice-prompts-chips-wrap">
+                {[
+                  'What is my bank balance?',
+                  'What is my net worth?',
+                  'What is my cash balance?',
+                  'Show total expense this month',
+                ].map((sample, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="voice-prompt-pill"
+                    onClick={() => handlePromptClick(sample)}
+                  >
+                    🔍 {sample}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Trust & Security Badges */}
+          <div className="voice-trust-grid">
+            <div className="voice-trust-card">
+              <span className="voice-trust-icon">🛡️</span>
+              <div className="voice-trust-info">
+                <span className="voice-trust-name">Prompt Guard</span>
+                <span className="voice-trust-desc">Real-time injection sanitization before LLM reasoning.</span>
+              </div>
+            </div>
+
+            <div className="voice-trust-card">
+              <span className="voice-trust-icon">⚖️</span>
+              <div className="voice-trust-info">
+                <span className="voice-trust-name">Double-Entry</span>
+                <span className="voice-trust-desc">Strict Dr = Cr mathematical parity check on every voucher.</span>
+              </div>
+            </div>
+
+            <div className="voice-trust-card">
+              <span className="voice-trust-icon">🔐</span>
+              <div className="voice-trust-info">
+                <span className="voice-trust-name">2-Step Verify</span>
+                <span className="voice-trust-desc">Confirmation preview dialog protects financial ledger state.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Right Column: Live Execution Stream */}
+        <section className="voice-studio-feed">
+          <div className="voice-feed-header">
+            <div className="voice-feed-title-wrap">
+              <h3 className="voice-feed-title">Live Execution Feed</h3>
+              <span className="voice-feed-count-badge">{logs.length}</span>
+            </div>
+
+            <div className="voice-feed-controls">
+              <button
+                className={`voice-feed-filter-btn ${activeTab === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveTab('all')}
+                type="button"
+              >
+                All
+              </button>
+              <button
+                className={`voice-feed-filter-btn ${activeTab === 'transactions' ? 'active' : ''}`}
+                onClick={() => setActiveTab('transactions')}
+                type="button"
+              >
+                Vouchers
+              </button>
+              <button
+                className={`voice-feed-filter-btn ${activeTab === 'queries' ? 'active' : ''}`}
+                onClick={() => setActiveTab('queries')}
+                type="button"
+              >
+                Queries
+              </button>
+
+              {logs.length > 0 && (
+                <button
+                  type="button"
+                  className="voice-feed-clear-btn"
+                  onClick={() => setLogs([])}
+                  title="Clear feed history"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div ref={terminalRef} className="voice-feed-list">
+            {filteredLogs.length === 0 && (
+              <div className="voice-feed-empty">
+                <div className="voice-feed-empty-orb">📡</div>
+                <h4 className="voice-feed-empty-title">Ready for Voice Commands</h4>
+                <p className="voice-feed-empty-desc">
+                  Dictate or type transactions and queries. Real-time vouchers, debit/credit journal breakdowns, and balance reports will stream here.
+                </p>
+              </div>
+            )}
+
+            {filteredLogs.map((item) => (
+              <div key={item.id} className="voice-feed-item">
+                <div className="voice-feed-item-top">
+                  <span className="voice-feed-prompt-pill">
+                    🗣️ "{item.transcript}"
+                  </span>
+                  <span className="voice-feed-timestamp">
+                    {item.timestamp.toLocaleTimeString()}
+                  </span>
+                </div>
+
+                <div className="voice-feed-response-text">
+                  {item.response.spokenResponse}
+                </div>
+
+                {/* Preview Transaction Details with Confirmation Actions */}
+                {item.response.needsConfirmation && item.response.data && (
+                  <div className="voice-card preview" style={{ marginTop: 6 }}>
+                    <div className="voice-card-header">
+                      <span className="voice-card-badge preview">
+                        ⚠️ PREVIEW: {item.response.data.voucherType || 'VOUCHER'}
+                      </span>
+                      <span className="voice-card-amount">
+                        {item.response.data.formattedAmount || `₹${item.response.data.amount}`}
+                      </span>
+                    </div>
+                    <div className="voice-card-split">
+                      <div className="voice-card-split-item">
+                        <div className="label">Debit (Dr)</div>
+                        <div className="val">{item.response.data.debitAccount}</div>
+                      </div>
+                      <div className="voice-card-split-item">
+                        <div className="label">Credit (Cr)</div>
+                        <div className="val">{item.response.data.creditAccount}</div>
+                      </div>
+                    </div>
+                    {item.response.data.narration && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                        📝 {item.response.data.narration}
+                      </div>
+                    )}
+                    <div className="voice-confirm-actions" style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="voice-confirm-btn"
+                        onClick={handleConfirmPending}
+                        disabled={isProcessing}
+                      >
+                        ✓ Confirm & Post
+                      </button>
+                      <button
+                        type="button"
+                        className="voice-cancel-btn"
+                        onClick={handleCancelPending}
+                        disabled={isProcessing}
+                      >
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Executed Transaction Details */}
+                {item.response.executed && item.response.intent.type === 'TRANSACTION' && item.response.data && (
+                  <div className="voice-card-split" style={{ marginTop: 4 }}>
+                    <div className="voice-card-split-item">
+                      <div className="label">Voucher & Amount</div>
+                      <div className="val" style={{ color: '#38bdf8' }}>
+                        {item.response.data.voucherType} — {item.response.data.formattedAmount || `₹${item.response.data.amount}`}
+                      </div>
+                    </div>
+                    <div className="voice-card-split-item">
+                      <div className="label">Dr ➔ Cr Split</div>
+                      <div className="val">
+                        {item.response.data.debitAccount} (Dr) ➔ {item.response.data.creditAccount} (Cr)
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Query Details */}
+                {item.response.intent.type === 'QUERY' && item.response.data && (
+                  <div className="voice-card-split" style={{ marginTop: 4 }}>
+                    <div className="voice-card-split-item">
+                      <div className="label">Metric Target</div>
+                      <div className="val">{item.response.displayTitle}</div>
+                    </div>
+                    <div className="voice-card-split-item">
+                      <div className="label">Balance / Value</div>
+                      <div className="val" style={{ color: '#22c55e' }}>
+                        {item.response.data.formattedBalance ||
+                          item.response.data.formattedNetWorth ||
+                          item.response.data.formattedTotalExpense ||
+                          item.response.data.formattedTotalRevenue ||
+                          `₹${item.response.data.amount || 0}`}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
       {/* Transaction Confirmation Popup Dialog Overlay */}

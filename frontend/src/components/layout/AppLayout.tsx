@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { VoiceAgentModal } from '../voice/VoiceAgentModal';
 import { VoiceFloatingButton } from '../voice/VoiceFloatingButton';
@@ -10,6 +10,8 @@ export function AppLayout() {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isVoiceStudio = location.pathname === '/voice' || location.pathname.startsWith('/voice');
 
   return (
     <div className="app-layout">
@@ -76,10 +78,12 @@ export function AppLayout() {
         </NavLink>
       </nav>
 
-      {/* Desktop Floating Voice Assistant */}
-      <div className="desktop-voice-fab">
-        <VoiceFloatingButton onClick={() => setIsVoiceModalOpen(true)} />
-      </div>
+      {/* Desktop Floating Voice Assistant (Hidden on Voice Studio page) */}
+      {!isVoiceStudio && (
+        <div className="desktop-voice-fab">
+          <VoiceFloatingButton onClick={() => setIsVoiceModalOpen(true)} />
+        </div>
+      )}
 
       {/* Voice Assistant Modal */}
       <VoiceAgentModal
