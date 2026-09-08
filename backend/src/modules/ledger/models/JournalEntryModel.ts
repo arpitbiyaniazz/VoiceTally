@@ -1,5 +1,6 @@
 import { prisma } from '../../../core/database/prisma.js';
 import { enqueueLedgerPosting } from '../../../core/queue/ledgerPostingQueue.js';
+import { ledgerPostingProcessor } from '../../../workers/ledgerPostingProcessor.js';
 import {
   UnbalancedEntryError,
   ValidationError,
@@ -216,9 +217,17 @@ export const JournalEntryModel = {
       return journalEntry;
     });
 
-    // ── Enqueue Phase B (ledger posting) ──────────────────────────────
-
-    await enqueueLedgerPosting(entry.id);
+    // ── Enqueue Phase B (ledger posting with fault-tolerant fallback) ──
+    try {
+      await enqueueLedgerPosting(entry.id);
+    } catch (queueErr) {
+      console.warn(`[JournalEntryModel] Queue enqueue failed for entry ${entry.id}, falling back to inline processor:`, queueErr);
+      try {
+        await ledgerPostingProcessor({ data: { journalEntryId: entry.id } } as any);
+      } catch (fallbackErr) {
+        console.error(`[JournalEntryModel] Inline posting fallback failed for entry ${entry.id}:`, fallbackErr);
+      }
+    }
 
     return entry as JournalEntryWithLines;
   },
@@ -386,8 +395,30 @@ export const JournalEntryModel = {
       prisma.journalLine.count({ where }),
     ]);
 
-    // Build running balance
+    // Build running balance with cross-page continuity
     let balance = openingBalance;
+    const skipCount = (page - 1) * pageSize;
+
+    if (skipCount > 0) {
+      const priorPageLines = await prisma.journalLine.findMany({
+        where,
+        select: {
+          debitAmount: true,
+          creditAmount: true,
+        },
+        orderBy: {
+          journalEntry: { date: 'asc' },
+        },
+        take: skipCount,
+      });
+
+      for (const pl of priorPageLines) {
+        balance = balance
+          .plus(pl.debitAmount ?? new Decimal(0))
+          .minus(pl.creditAmount ?? new Decimal(0));
+      }
+    }
+
     const rows: LedgerRow[] = lines.map((line) => {
       const debit = line.debitAmount ?? new Decimal(0);
       const credit = line.creditAmount ?? new Decimal(0);
