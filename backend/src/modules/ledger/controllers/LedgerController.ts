@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { JournalEntryModel } from '../models/JournalEntryModel.js';
 import { PostingEngine, type VoucherInput } from '../services/PostingEngine.js';
+import { LedgerReconciliationService } from '../services/LedgerReconciliationService.js';
 import { LedgerView } from '../views/LedgerView.js';
 import { ValidationError } from '../../../core/errors/index.js';
 import type { AuthenticatedRequest } from '../../../core/types/index.js';
@@ -126,6 +127,27 @@ export const LedgerController = {
       });
 
       res.status(200).json(LedgerView.journalEntryList(result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Run self-healing ledger reconciliation and balance auditing.
+   */
+  async reconcile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { userId } = req as AuthenticatedRequest;
+      const unpostedResult = await LedgerReconciliationService.reconcileUnpostedEntries(userId);
+      const auditResult = await LedgerReconciliationService.auditAndRepairAccountBalances(userId);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          unpostedReconciliation: unpostedResult,
+          balanceAudit: auditResult,
+        },
+      });
     } catch (error) {
       next(error);
     }
