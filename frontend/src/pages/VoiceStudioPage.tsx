@@ -15,38 +15,60 @@ export const VoiceStudioPage: React.FC = () => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'transactions' | 'queries'>('all');
+  const [pendingPreview, setPendingPreview] = useState<VoiceProcessResponse | null>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
   const speakRef = useRef<(text: string) => void>(() => {});
 
-  const handleProcessText = useCallback(async (textToSend: string) => {
-    if (!textToSend.trim() || isProcessing) return;
+  const handleProcessText = useCallback(
+    async (textToSend: string, forceExecute?: boolean) => {
+      if (!textToSend.trim() || isProcessing) return;
 
-    setIsProcessing(true);
-    setInputVal('');
+      setIsProcessing(true);
+      setInputVal('');
 
-    try {
-      const res = await voiceApi.process({ transcript: textToSend, execute: true });
-      const voiceData = res.data.data;
+      try {
+        const shouldExecute = forceExecute !== undefined ? forceExecute : false;
+        const res = await voiceApi.process({ transcript: textToSend, execute: shouldExecute });
+        const voiceData = res.data.data;
 
-      const logItem: LogItem = {
-        id: Date.now().toString(),
-        transcript: textToSend,
-        response: voiceData,
-        timestamp: new Date(),
-      };
+        const logItem: LogItem = {
+          id: Date.now().toString(),
+          transcript: textToSend,
+          response: voiceData,
+          timestamp: new Date(),
+        };
 
-      setLogs((prev) => [...prev, logItem]);
+        setLogs((prev) => [...prev, logItem]);
 
-      if (voiceData.spokenResponse) {
-        speakRef.current(voiceData.spokenResponse);
+        // If preview mode, trigger pending confirmation popup
+        if (voiceData.needsConfirmation || (voiceData.intent?.type === 'TRANSACTION' && !voiceData.executed && voiceData.data)) {
+          setPendingPreview(voiceData);
+        } else {
+          setPendingPreview(null);
+        }
+
+        if (voiceData.spokenResponse) {
+          speakRef.current(voiceData.spokenResponse);
+        }
+      } catch (err: any) {
+        const errorMsg = err.response?.data?.message || 'Failed to process voice command.';
+        speakRef.current(errorMsg);
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.message || 'Failed to process voice command.';
-      speakRef.current(errorMsg);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [isProcessing]);
+    },
+    [isProcessing]
+  );
+
+  const handleConfirmPending = () => {
+    if (isProcessing) return;
+    handleProcessText('confirm');
+  };
+
+  const handleCancelPending = () => {
+    if (isProcessing) return;
+    handleProcessText('cancel');
+  };
 
   const {
     isListening,
@@ -432,8 +454,55 @@ export const VoiceStudioPage: React.FC = () => {
                     {item.response.spokenResponse}
                   </div>
 
-                  {/* Transaction Details */}
-                  {item.response.intent.type === 'TRANSACTION' && item.response.data && (
+                  {/* Preview Transaction Details with Confirmation Actions */}
+                  {item.response.needsConfirmation && item.response.data && (
+                    <div className="voice-card preview" style={{ marginTop: 6 }}>
+                      <div className="voice-card-header">
+                        <span className="voice-card-badge preview">
+                          ⚠️ PREVIEW: {item.response.data.voucherType || 'VOUCHER'}
+                        </span>
+                        <span className="voice-card-amount">
+                          {item.response.data.formattedAmount || `₹${item.response.data.amount}`}
+                        </span>
+                      </div>
+                      <div className="voice-card-split">
+                        <div className="voice-card-split-item">
+                          <div className="label">Debit (Dr)</div>
+                          <div className="val">{item.response.data.debitAccount}</div>
+                        </div>
+                        <div className="voice-card-split-item">
+                          <div className="label">Credit (Cr)</div>
+                          <div className="val">{item.response.data.creditAccount}</div>
+                        </div>
+                      </div>
+                      {item.response.data.narration && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                          📝 {item.response.data.narration}
+                        </div>
+                      )}
+                      <div className="voice-confirm-actions" style={{ marginTop: 8 }}>
+                        <button
+                          type="button"
+                          className="voice-confirm-btn"
+                          onClick={handleConfirmPending}
+                          disabled={isProcessing}
+                        >
+                          ✓ Confirm & Post
+                        </button>
+                        <button
+                          type="button"
+                          className="voice-cancel-btn"
+                          onClick={handleCancelPending}
+                          disabled={isProcessing}
+                        >
+                          ✕ Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Executed Transaction Details */}
+                  {item.response.executed && item.response.intent.type === 'TRANSACTION' && item.response.data && (
                     <div className="voice-card-split" style={{ marginTop: 4 }}>
                       <div className="voice-card-split-item">
                         <div className="label">Voucher & Amount</div>
@@ -558,6 +627,111 @@ export const VoiceStudioPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Transaction Confirmation Popup Dialog Overlay */}
+      {pendingPreview && pendingPreview.data && (
+        <div
+          className="voice-popup-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="studio-popup-title"
+        >
+          <div className="voice-popup-dialog">
+            <div className="voice-popup-header">
+              <div className="voice-popup-badge-wrap">
+                <span className="voice-popup-badge-icon">⚡</span>
+                <div>
+                  <h4 id="studio-popup-title" className="voice-popup-title">
+                    Confirm Transaction
+                  </h4>
+                  <p className="voice-popup-subtitle">Review before recording into double-entry ledger</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="voice-popup-close-btn"
+                onClick={handleCancelPending}
+                disabled={isProcessing}
+                title="Cancel Transaction"
+                aria-label="Cancel"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="voice-popup-body">
+              <div className="voice-popup-question-banner">
+                <span className="voice-popup-question-icon">❓</span>
+                <span>Do you want to proceed with this transaction?</span>
+              </div>
+
+              <div className="voice-popup-summary-card">
+                <div className="voice-popup-summary-top">
+                  <span
+                    className={`voice-card-badge ${
+                      pendingPreview.data.voucherType?.toLowerCase() || 'journal'
+                    }`}
+                  >
+                    {pendingPreview.data.voucherType || 'TRANSACTION'} VOUCHER
+                  </span>
+                  <span className="voice-popup-amount">
+                    {pendingPreview.data.formattedAmount || `₹${pendingPreview.data.amount}`}
+                  </span>
+                </div>
+
+                <div className="voice-popup-ledger-grid">
+                  <div className="voice-popup-ledger-box debit">
+                    <span className="ledger-tag dr">Debit (Dr)</span>
+                    <span className="ledger-account-name">{pendingPreview.data.debitAccount}</span>
+                  </div>
+                  <div className="voice-popup-arrow">➔</div>
+                  <div className="voice-popup-ledger-box credit">
+                    <span className="ledger-tag cr">Credit (Cr)</span>
+                    <span className="ledger-account-name">{pendingPreview.data.creditAccount}</span>
+                  </div>
+                </div>
+
+                {pendingPreview.data.narration && (
+                  <div className="voice-popup-narration-box">
+                    <span className="narration-icon">📝</span>
+                    <span className="narration-text">{pendingPreview.data.narration}</span>
+                  </div>
+                )}
+
+                {pendingPreview.data.warning && (
+                  <div className="voice-popup-warning-box">
+                    <span>⚡</span>
+                    <span>{pendingPreview.data.warning}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="voice-popup-voice-hint">
+                🎙️ Speak <strong>"Yes"</strong> / <strong>"Confirm"</strong>, or <strong>"Cancel"</strong> / <strong>"No"</strong>
+              </div>
+            </div>
+
+            <div className="voice-popup-footer">
+              <button
+                type="button"
+                className="voice-popup-btn confirm"
+                onClick={handleConfirmPending}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Posting...' : '✓ Yes, Confirm & Post'}
+              </button>
+              <button
+                type="button"
+                className="voice-popup-btn cancel"
+                onClick={handleCancelPending}
+                disabled={isProcessing}
+              >
+                ✕ No, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
