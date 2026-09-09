@@ -581,7 +581,8 @@ a:hover {
 
 /* ─── Page Layout & Headers ──────────────────────────────────────────────── */
 
-.page {
+.page,
+.page-container {
   padding: var(--space-xl);
   max-width: 1400px;
   margin: 0 auto;
@@ -802,7 +803,8 @@ a:hover {
     --sidebar-width: 0px;
   }
 
-  .page {
+  .page,
+  .page-container {
     padding: var(--space-md);
     padding-bottom: calc(var(--bottom-nav-height) + var(--space-lg));
   }

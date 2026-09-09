@@ -59,6 +59,7 @@ export default function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/voice" element={<VoiceStudioPage />} />
+              <Route path="/voice-studio" element={<VoiceStudioPage />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/vouchers" element={<VoucherEntryPage />} />
               <Route path="/journal" element={<JournalBookPage />} />
