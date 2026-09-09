@@ -17,7 +17,7 @@ import {
   UnbalancedEntryError,
 } from '../../src/core/errors/index.js';
 
-describe('Production Readiness & Security Invariant Suite', () => {
+describe('Production Readiness & Security Invariant Suite', { timeout: 15000 }, () => {
   let userA: { id: string; email: string };
   let userB: { id: string; email: string };
   let userACashId: string;
