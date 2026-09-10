@@ -7,6 +7,7 @@ export interface WhatsAppIncomingMessage {
   type?: 'text' | 'audio' | 'voice' | 'interactive';
   audioUrl?: string;
   buttonPayload?: string;
+  simulatedUserId?: string;
 }
 
 export interface WhatsAppBotReply {
@@ -64,33 +65,42 @@ export class WhatsAppBotService {
     // ─────────────────────────────────────────────────────────────────────────
     // 1. ACCOUNT PAIRING LOGIC (If user is not linked yet)
     // ─────────────────────────────────────────────────────────────────────────
-    if (!user) {
-      // Check if message is a pairing command: e.g. "PAIR 123456" or "123456"
-      const pairMatch = textContent.match(/^(?:pair\s+)?([a-zA-Z0-9]{6})$/i);
-      if (pairMatch) {
-        const pairingCode = pairMatch[1].toUpperCase();
-        const matchedUser = await prisma.user.findFirst({
-          where: { botPairingCode: pairingCode },
+    // Check if message is a pairing command: e.g. "PAIR 123456" or "123456"
+    const pairMatch = textContent.match(/^(?:pair\s+)?([a-zA-Z0-9]{6})$/i);
+    if (pairMatch) {
+      const pairingCode = pairMatch[1].toUpperCase();
+      const matchedUser = await prisma.user.findFirst({
+        where: { botPairingCode: pairingCode },
+      });
+
+      if (matchedUser) {
+        await prisma.user.update({
+          where: { id: matchedUser.id },
+          data: {
+            // Only persist a real phone from an actual WhatsApp message.
+            // Simulator-driven pairing (simulatedUserId set) has no real phone —
+            // persisting the placeholder would write garbage onto the account.
+            ...(msg.simulatedUserId ? {} : { phone: senderPhone }),
+            botPairingCode: null, // Clear single-use code
+          },
         });
 
-        if (matchedUser) {
-          await prisma.user.update({
-            where: { id: matchedUser.id },
-            data: {
-              phone: senderPhone,
-              botPairingCode: null, // Clear single-use code
-            },
-          });
-
-          return {
-            to: senderPhone,
-            text: `🎉 *Account Successfully Linked!*\n\nHello *${matchedUser.name}*, your WhatsApp is now connected to VoiceTally.\n\nYou can now send *voice notes* or *text messages* like:\n• _"Paid ₹500 for lunch from Cash"_\n• _"Sharma ji paid 5000 in bank"_\n• _"What is my bank balance?"_`,
-            userId: matchedUser.id,
-            actionTaken: 'PAIRED',
-          };
-        }
+        return {
+          to: senderPhone,
+          text: `🎉 *Account Successfully Linked!*\n\nHello *${matchedUser.name}*, your WhatsApp is now connected to VoiceTally.\n\nYou can now send *voice notes* or *text messages* like:\n• _"Paid ₹500 for lunch from Cash"_\n• _"Sharma ji paid 5000 in bank"_\n• _"What is my bank balance?"_`,
+          userId: matchedUser.id,
+          actionTaken: 'PAIRED',
+        };
       }
+    }
 
+    if (!user && msg.simulatedUserId) {
+      user = await prisma.user.findUnique({
+        where: { id: msg.simulatedUserId },
+      });
+    }
+
+    if (!user) {
       return {
         to: senderPhone,
         text: `👋 *Welcome to VoiceTally WhatsApp Companion!*\n\nYour phone number (*${senderPhone}*) is not yet connected to a VoiceTally account.\n\n*How to connect:*\n1. Log in to your VoiceTally Web App\n2. Navigate to *Bot Integrations*\n3. Copy your 6-digit Pairing Code\n4. Reply here with: \`PAIR <CODE>\``,

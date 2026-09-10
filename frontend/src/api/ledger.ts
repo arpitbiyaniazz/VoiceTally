@@ -109,6 +109,10 @@ export const integrationsApi = {
     return api.post('/integrations/link-phone', { phone });
   },
 
+  linkTelegram(telegramChatId: string) {
+    return api.post('/integrations/link-telegram', { telegramChatId });
+  },
+
   generatePairingCode() {
     return api.post('/integrations/generate-code');
   },

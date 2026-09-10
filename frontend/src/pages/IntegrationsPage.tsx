@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { integrationsApi } from '../api/ledger';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import './IntegrationsPage.css';
 
 interface IntegrationStatus {
@@ -13,6 +14,8 @@ interface IntegrationStatus {
   webhookUrls: {
     whatsapp: string;
     telegram: string;
+    whatsappV1?: string;
+    telegramV1?: string;
   };
 }
 
@@ -27,13 +30,30 @@ interface ChatMessage {
   inlineKeyboard?: Array<Array<{ text: string; callback_data: string }>>;
 }
 
+interface ToastNotice {
+  type: 'success' | 'danger' | 'info';
+  message: string;
+}
+
+const extractErrorMessage = (err: any, fallback: string): string => {
+  if (err?.response?.data?.error?.message) return err.response.data.error.message;
+  if (err?.response?.data?.message) return err.response.data.message;
+  if (typeof err?.response?.data?.error === 'string') return err.response.data.error;
+  if (err?.message) return err.message;
+  return fallback;
+};
+
 export const IntegrationsPage: React.FC = () => {
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState('');
+  const [telegramInput, setTelegramInput] = useState('');
   const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [isSavingTelegram, setIsSavingTelegram] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [toast, setToast] = useState<ToastNotice | null>(null);
+  const [showWebhooksDrawer, setShowWebhooksDrawer] = useState(false);
 
   // Simulator State
   const [simChannel, setSimChannel] = useState<'WHATSAPP' | 'TELEGRAM'>('WHATSAPP');
@@ -43,12 +63,89 @@ export const IntegrationsPage: React.FC = () => {
   const [isVoiceSim, setIsVoiceSim] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const showToastNotice = useCallback((message: string, type: 'success' | 'danger' | 'info' = 'info') => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  // Real Speech Recognition Integration
+  const handleSendMessage = useCallback(async (customText?: string, isVoiceNote?: boolean) => {
+    const textToSend = (customText || simInput).trim();
+    if (!textToSend || isSending) return;
+
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg: ChatMessage = {
+      id: `u_${Date.now()}`,
+      sender: 'user',
+      text: textToSend,
+      time,
+      isVoice: isVoiceNote ?? isVoiceSim,
+    };
+
+    setSimMessages((prev) => [...prev, userMsg]);
+    if (!customText) setSimInput('');
+    setIsSending(true);
+
+    try {
+      const res = await integrationsApi.simulateChat(simChannel, textToSend, isVoiceNote ?? isVoiceSim);
+      if (res.data.success && res.data.data) {
+        const reply = res.data.data;
+        const botMsg: ChatMessage = {
+          id: `b_${Date.now()}`,
+          sender: 'bot',
+          text: reply.text,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          previewCard: reply.previewCard,
+          quickReplies: reply.quickReplies,
+          inlineKeyboard: reply.inlineKeyboard,
+        };
+        setSimMessages((prev) => [...prev, botMsg]);
+
+        // If paired command succeeded in chat, refresh status
+        if (reply.actionTaken === 'PAIRED') {
+          fetchStatus();
+        }
+      }
+    } catch (err: any) {
+      const safeErr = extractErrorMessage(err, 'Failed to communicate with bot service');
+      const errorMsg: ChatMessage = {
+        id: `err_${Date.now()}`,
+        sender: 'bot',
+        text: `⚠️ Error: ${safeErr}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setSimMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsSending(false);
+    }
+  }, [simInput, isSending, isVoiceSim, simChannel]);
+
+  const {
+    isListening,
+    error: speechError,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition({
+    onResult: (finalText) => {
+      if (finalText.trim()) {
+        setSimInput(finalText.trim());
+        handleSendMessage(finalText.trim(), true);
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (speechError) {
+      showToastNotice(speechError, 'danger');
+    }
+  }, [speechError, showToastNotice]);
+
   useEffect(() => {
     fetchStatus();
   }, []);
 
   useEffect(() => {
-    // Initial bot welcome message
+    // Initial bot welcome message on channel switch
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (simChannel === 'WHATSAPP') {
       setSimMessages([
@@ -98,9 +195,12 @@ export const IntegrationsPage: React.FC = () => {
         if (res.data.data.phone) {
           setPhoneInput(res.data.data.phone);
         }
+        if (res.data.data.telegramChatId) {
+          setTelegramInput(res.data.data.telegramChatId);
+        }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load integration settings');
+      setError(extractErrorMessage(err, 'Failed to load integration settings'));
     } finally {
       setLoading(false);
     }
@@ -110,6 +210,7 @@ export const IntegrationsPage: React.FC = () => {
     if (status?.pairingCode) {
       navigator.clipboard.writeText(status.pairingCode);
       setCopiedCode(true);
+      showToastNotice('Pairing code copied to clipboard!', 'success');
       setTimeout(() => setCopiedCode(false), 2000);
     }
   };
@@ -119,9 +220,10 @@ export const IntegrationsPage: React.FC = () => {
       const res = await integrationsApi.generatePairingCode();
       if (res.data.success && status) {
         setStatus({ ...status, pairingCode: res.data.data.pairingCode });
+        showToastNotice('Generated fresh 6-digit pairing code!', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to generate new code');
+      showToastNotice(extractErrorMessage(err, 'Failed to generate new code'), 'danger');
     }
   };
 
@@ -134,12 +236,39 @@ export const IntegrationsPage: React.FC = () => {
       const res = await integrationsApi.linkPhone(phoneInput.trim());
       if (res.data.success && status) {
         setStatus({ ...status, phone: res.data.data.phone, isPhoneLinked: true });
-        alert('✅ WhatsApp phone number linked successfully!');
+        showToastNotice('✅ WhatsApp phone number linked successfully!', 'success');
       }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to link phone number');
+      showToastNotice(extractErrorMessage(err, 'Failed to link phone number'), 'danger');
     } finally {
       setIsSavingPhone(false);
+    }
+  };
+
+  const handleSaveTelegram = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!telegramInput.trim()) return;
+
+    try {
+      setIsSavingTelegram(true);
+      const res = await integrationsApi.linkTelegram(telegramInput.trim());
+      if (res.data.success && status) {
+        setStatus({ ...status, telegramChatId: res.data.data.telegramChatId, isTelegramLinked: true });
+        showToastNotice('✅ Telegram account linked successfully!', 'success');
+      }
+    } catch (err: any) {
+      showToastNotice(extractErrorMessage(err, 'Failed to link Telegram account'), 'danger');
+    } finally {
+      setIsSavingTelegram(false);
+    }
+  };
+
+  const handleQuickPairSimulator = async () => {
+    if (!status?.pairingCode) return;
+    if (simChannel === 'WHATSAPP') {
+      await handleSendMessage(`PAIR ${status.pairingCode}`);
+    } else {
+      await handleSendMessage(`/start ${status.pairingCode}`);
     }
   };
 
@@ -152,63 +281,31 @@ export const IntegrationsPage: React.FC = () => {
         if (channel === 'WHATSAPP') {
           setStatus({ ...status, phone: null, isPhoneLinked: false });
           setPhoneInput('');
+          showToastNotice('WhatsApp unlinked successfully.', 'info');
         } else {
           setStatus({ ...status, telegramChatId: null, isTelegramLinked: false });
+          setTelegramInput('');
+          showToastNotice('Telegram unlinked successfully.', 'info');
         }
       }
     } catch (err: any) {
-      alert(err.response?.data?.error || `Failed to unlink ${channel}`);
+      showToastNotice(extractErrorMessage(err, `Failed to unlink ${channel}`), 'danger');
     }
   };
 
-  const handleSendMessage = async (customText?: string, isVoiceNote?: boolean) => {
-    const textToSend = (customText || simInput).trim();
-    if (!textToSend || isSending) return;
-
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const userMsg: ChatMessage = {
-      id: `u_${Date.now()}`,
-      sender: 'user',
-      text: textToSend,
-      time,
-      isVoice: isVoiceNote ?? isVoiceSim,
-    };
-
-    setSimMessages((prev) => [...prev, userMsg]);
-    if (!customText) setSimInput('');
-    setIsSending(true);
-
-    try {
-      const res = await integrationsApi.simulateChat(simChannel, textToSend, isVoiceNote ?? isVoiceSim);
-      if (res.data.success && res.data.data) {
-        const reply = res.data.data;
-        const botMsg: ChatMessage = {
-          id: `b_${Date.now()}`,
-          sender: 'bot',
-          text: reply.text,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          previewCard: reply.previewCard,
-          quickReplies: reply.quickReplies,
-          inlineKeyboard: reply.inlineKeyboard,
-        };
-        setSimMessages((prev) => [...prev, botMsg]);
-      }
-    } catch (err: any) {
-      const errorMsg: ChatMessage = {
-        id: `err_${Date.now()}`,
-        sender: 'bot',
-        text: `⚠️ Error: ${err.response?.data?.error || 'Failed to communicate with bot service'}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setSimMessages((prev) => [...prev, errorMsg]);
-    } finally {
-      setIsSending(false);
+  const handleToggleVoiceMic = () => {
+    if (isListening) {
+      stopListening();
+      setIsVoiceSim(false);
+    } else {
+      setIsVoiceSim(true);
+      startListening();
     }
   };
 
   if (loading) {
     return (
-      <div className="page-container integrations-page">
+      <div className="page integrations-page">
         <div className="skeleton-loader" style={{ height: 200, borderRadius: 20, marginBottom: 24 }} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           <div className="skeleton-loader" style={{ height: 400, borderRadius: 20 }} />
@@ -219,7 +316,15 @@ export const IntegrationsPage: React.FC = () => {
   }
 
   return (
-    <div className="page-container integrations-page">
+    <div className="page integrations-page">
+      {/* ─── Toast Notice ────────────────────────────────────────────── */}
+      {toast && (
+        <div className={`toast-notification ${toast.type}`} role="status">
+          <span>{toast.type === 'success' ? '✅' : toast.type === 'danger' ? '⚠️' : 'ℹ️'}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       {/* ─── Page Header ────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
@@ -229,7 +334,14 @@ export const IntegrationsPage: React.FC = () => {
           </p>
         </div>
         <div className="integrations-header-controls">
-          <button className="btn btn-secondary" onClick={fetchStatus}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowWebhooksDrawer(!showWebhooksDrawer)}
+            title="View Webhook & API endpoints"
+          >
+            🔌 {showWebhooksDrawer ? 'Hide Webhooks' : 'Webhook & API Info'}
+          </button>
+          <button className="btn btn-secondary" onClick={fetchStatus} title="Reload integration status">
             🔄 Refresh Status
           </button>
         </div>
@@ -238,6 +350,37 @@ export const IntegrationsPage: React.FC = () => {
       {error && (
         <div className="alert alert-danger" style={{ marginBottom: 'var(--space-lg)' }}>
           {error}
+        </div>
+      )}
+
+      {/* ─── Developer Webhook Endpoints Drawer (Collapsible) ────────── */}
+      {showWebhooksDrawer && (
+        <div className="webhooks-drawer card-glass" style={{ marginBottom: 'var(--space-xl)' }}>
+          <div className="drawer-header">
+            <h3>🛠️ Live Bot Webhook Endpoints</h3>
+            <span className="badge-tag">Production Ready</span>
+          </div>
+          <p className="drawer-desc">
+            Configure these webhook endpoints in the Meta WhatsApp Cloud API Portal and Telegram BotFather:
+          </p>
+          <div className="webhook-endpoints-list">
+            <div className="webhook-item">
+              <span className="webhook-label">WhatsApp Webhook (POST):</span>
+              <code className="webhook-code">
+                {window.location.origin}/api/integrations/whatsapp/webhook
+              </code>
+            </div>
+            <div className="webhook-item">
+              <span className="webhook-label">Telegram Webhook (POST):</span>
+              <code className="webhook-code">
+                {window.location.origin}/api/integrations/telegram/webhook
+              </code>
+            </div>
+            <div className="webhook-item">
+              <span className="webhook-label">Meta Verify Token:</span>
+              <code className="webhook-code">voicetally_webhook_secret_2026</code>
+            </div>
+          </div>
         </div>
       )}
 
@@ -366,6 +509,29 @@ export const IntegrationsPage: React.FC = () => {
             </div>
 
             <div className="channel-content-body">
+              {/* Telegram Handle / Chat ID Linking Form */}
+              <form onSubmit={handleSaveTelegram} className="channel-form-row">
+                <div className="input-with-label">
+                  <label htmlFor="tg-chat-id">Telegram Username or Chat ID</label>
+                  <input
+                    id="tg-chat-id"
+                    type="text"
+                    className="input"
+                    placeholder="@username or numeric Chat ID"
+                    value={telegramInput}
+                    onChange={(e) => setTelegramInput(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ alignSelf: 'flex-end' }}
+                  disabled={isSavingTelegram}
+                >
+                  {isSavingTelegram ? 'Saving...' : 'Save & Link'}
+                </button>
+              </form>
+
               <div className="channel-help-box">
                 <div className="help-title">⚡ Quick Telegram Setup:</div>
                 <ul className="help-list">
@@ -444,6 +610,17 @@ export const IntegrationsPage: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* 1-Click Fast Pair Assistant in Simulator */}
+              {((simChannel === 'WHATSAPP' && !status?.isPhoneLinked) ||
+                (simChannel === 'TELEGRAM' && !status?.isTelegramLinked)) && (
+                <div className="sim-unlinked-bar">
+                  <span>💡 Simulator connected to live ledger.</span>
+                  <button className="btn-sim-quick-pair" onClick={handleQuickPairSimulator}>
+                    ⚡ Pair in 1-Click
+                  </button>
+                </div>
+              )}
 
               {/* Message Feed */}
               <div className={`sim-messages-scroll ${simChannel.toLowerCase()}`}>
@@ -578,17 +755,26 @@ export const IntegrationsPage: React.FC = () => {
               <div className={`sim-input-footer ${simChannel.toLowerCase()}`}>
                 <button
                   type="button"
-                  className={`sim-voice-btn ${isVoiceSim ? 'recording' : ''}`}
-                  onClick={() => setIsVoiceSim(!isVoiceSim)}
-                  title={isVoiceSim ? 'Voice Simulation Active' : 'Switch to Voice Note mode'}
+                  className={`sim-voice-btn ${isListening || isVoiceSim ? 'recording' : ''}`}
+                  onClick={handleToggleVoiceMic}
+                  title={
+                    isListening
+                      ? 'Listening... Click to stop'
+                      : isVoiceSim
+                      ? 'Voice Simulation Active'
+                      : 'Speak voice note'
+                  }
+                  aria-label="Voice input toggle"
                 >
-                  {isVoiceSim ? '🔴' : '🎙️'}
+                  {isListening ? '🔴' : isVoiceSim ? '🔊' : '🎙️'}
                 </button>
                 <input
                   type="text"
-                  className={`sim-text-input ${simChannel.toLowerCase()}`}
+                  className={`sim-text-input ${simChannel.toLowerCase()} ${isListening ? 'listening-pulse' : ''}`}
                   placeholder={
-                    isVoiceSim
+                    isListening
+                      ? '🎙️ Listening to speech... speak now...'
+                      : isVoiceSim
                       ? '🎙️ Spoken voice note simulated...'
                       : 'Type a message or slash command...'
                   }

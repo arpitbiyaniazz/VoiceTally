@@ -665,3 +665,188 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ─── In-App Toast Notification ─────────────────────────────────────── */
+.toast-notification {
+  position: fixed;
+  top: 84px;
+  right: 28px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: slideInToast 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
+}
+
+@keyframes slideInToast {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-notification.success {
+  background: rgba(16, 185, 129, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(52, 211, 153, 0.5);
+}
+
+.toast-notification.danger {
+  background: rgba(239, 68, 68, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+}
+
+.toast-notification.info {
+  background: rgba(59, 130, 246, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.5);
+}
+
+/* ─── Webhook Drawer ────────────────────────────────────────────────── */
+.webhooks-drawer {
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+  animation: fadeInMsg 0.2s ease-out;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.badge-tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.drawer-desc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.webhook-endpoints-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.webhook-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+
+.webhook-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 170px;
+}
+
+.webhook-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8125rem;
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex: 1;
+  word-break: break-all;
+}
+
+/* ─── Simulator Unlinked Helper & Quick-Pair ────────────────────────── */
+.sim-unlinked-bar {
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.15) 0%, rgba(249, 115, 22, 0.15) 100%);
+  border-bottom: 1px solid rgba(234, 179, 8, 0.3);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.7188rem;
+  color: #fef08a;
+  z-index: 5;
+}
+
+.btn-sim-quick-pair {
+  background: #f59e0b;
+  color: #0f172a;
+  border: none;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-sim-quick-pair:hover {
+  background: #fbbf24;
+  transform: scale(1.04);
+}
+
+/* ─── Speech Recognition Pulse ──────────────────────────────────────── */
+.sim-text-input.listening-pulse {
+  border-color: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  animation: pulseInputGlow 1.2s infinite alternate;
+}
+
+@keyframes pulseInputGlow {
+  0% {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+  }
+}
+
+/* ─── Danger Outline Button ─────────────────────────────────────────── */
+.btn-outline-danger {
+  background: transparent;
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
