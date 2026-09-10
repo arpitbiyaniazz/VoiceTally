@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ledgerApi } from '../api/ledger';
+import { useAuth } from '../context/useAuth';
 import './ReportsPage.css';
 
-type ReportTab = 'BALANCE_SHEET' | 'PROFIT_LOSS' | 'CASH_FLOW' | 'TRIAL_BALANCE';
+type ReportTab = 'PROFIT_LOSS' | 'BALANCE_SHEET' | 'CASH_FLOW' | 'TRIAL_BALANCE';
+type ViewMode = 'TABLE' | 'CARDS';
 
 export function ReportsPage() {
-  const [activeTab, setActiveTab] = useState<ReportTab>('BALANCE_SHEET');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<ReportTab>('PROFIT_LOSS');
+  const [viewMode, setViewMode] = useState<ViewMode>('TABLE');
   const [loading, setLoading] = useState(false);
 
   // Date filters
@@ -60,6 +64,28 @@ export function ReportsPage() {
     };
   }, [activeTab, startDate, endDate, asOfDate]);
 
+  const formatPeriodLabel = (sDate: string, eDate: string) => {
+    try {
+      const s = new Date(sDate);
+      const e = new Date(eDate);
+      if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+        return s.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      }
+      return `${s.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} – ${e.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
+    } catch {
+      return 'Current Period';
+    }
+  };
+
+  const formatAsOfLabel = (dStr: string) => {
+    try {
+      const d = new Date(dStr);
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+      return dStr;
+    }
+  };
+
   const fmt = (val: string | number | undefined) => {
     if (val === undefined || val === null) return '₹0.00';
     const num = typeof val === 'string' ? parseFloat(val) : val;
@@ -68,6 +94,28 @@ export function ReportsPage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
+  };
+
+  /**
+   * Financial table accounting format matching standard corporate statements:
+   * Parentheses for negatives: (116,572) or (2,025)
+   * Pure numbers for positives: 121,033 or 4,461
+   */
+  const fmtAccounting = (val: string | number | undefined, forceParentheses = false): string => {
+    if (val === undefined || val === null) return '0';
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(num)) return '0';
+    if (Math.abs(num) < 0.0001) return '0';
+
+    const formatted = Math.abs(num).toLocaleString('en-US', {
+      minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
+      maximumFractionDigits: 2,
+    });
+
+    if (num < 0 || forceParentheses) {
+      return `(${formatted})`;
+    }
+    return formatted;
   };
 
   const handlePreset = (preset: 'THIS_MONTH' | 'LAST_MONTH' | 'YTD' | 'ALL') => {
@@ -92,31 +140,77 @@ export function ReportsPage() {
     }
   };
 
+  // Profit & Loss calculations
+  const isCogsAccount = (name: string) => {
+    const lower = name.toLowerCase();
+    return lower.includes('cogs') || lower.includes('cost of') || lower.includes('direct cost') || lower.includes('purchase');
+  };
+
+  const incomeAccounts = pnl?.incomeAccounts || [];
+  const expenseAccounts = pnl?.expenseAccounts || [];
+  const cogsAccounts = expenseAccounts.filter((a: any) => isCogsAccount(a.accountName));
+  const operatingExpenseAccounts = expenseAccounts.filter((a: any) => !isCogsAccount(a.accountName));
+
+  const totalRevenue = pnl ? parseFloat(pnl.totalIncome) : 0;
+  const totalCogs = cogsAccounts.reduce((sum: number, a: any) => sum + parseFloat(a.amount), 0);
+  const grossProfit = totalRevenue - totalCogs;
+  const totalOperatingExpense = operatingExpenseAccounts.reduce((sum: number, a: any) => sum + parseFloat(a.amount), 0);
+  const operatingIncome = grossProfit - totalOperatingExpense;
+  const netIncome = pnl ? parseFloat(pnl.netProfit) : 0;
+
   return (
     <div className="page reports-page">
+      {/* ─── Screen Page Header ────────────────────────────────────────── */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Financial Statements</h1>
           <p className="page-subtitle">Accurate double-entry balance sheets, profit & loss, and cash flow reports</p>
         </div>
-        <button className="btn btn-ghost" onClick={() => window.print()}>
-          🖨️ Print / Export
-        </button>
+
+        <div className="reports-header-actions">
+          <div className="statement-view-toggle">
+            <button
+              type="button"
+              className={`view-toggle-btn ${viewMode === 'TABLE' ? 'active' : ''}`}
+              onClick={() => setViewMode('TABLE')}
+              title="Table Format (Formal Corporate Statement)"
+            >
+              📋 Table Format
+            </button>
+            <button
+              type="button"
+              className={`view-toggle-btn ${viewMode === 'CARDS' ? 'active' : ''}`}
+              onClick={() => setViewMode('CARDS')}
+              title="Visual BI Cards"
+            >
+              📊 Visual BI Cards
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => window.print()}
+            title="Print or Export Financial Statement"
+          >
+            🖨️ Print Statement
+          </button>
+        </div>
       </div>
 
-      {/* Tabs */}
+      {/* ─── Tabs ──────────────────────────────────────────────────────── */}
       <div className="reports-tabs">
-        <button
-          className={`report-tab-btn ${activeTab === 'BALANCE_SHEET' ? 'active' : ''}`}
-          onClick={() => setActiveTab('BALANCE_SHEET')}
-        >
-          ⚖️ Balance Sheet
-        </button>
         <button
           className={`report-tab-btn ${activeTab === 'PROFIT_LOSS' ? 'active' : ''}`}
           onClick={() => setActiveTab('PROFIT_LOSS')}
         >
           📈 Profit & Loss
+        </button>
+        <button
+          className={`report-tab-btn ${activeTab === 'BALANCE_SHEET' ? 'active' : ''}`}
+          onClick={() => setActiveTab('BALANCE_SHEET')}
+        >
+          ⚖️ Balance Sheet
         </button>
         <button
           className={`report-tab-btn ${activeTab === 'CASH_FLOW' ? 'active' : ''}`}
@@ -132,7 +226,7 @@ export function ReportsPage() {
         </button>
       </div>
 
-      {/* Date Filters Bar */}
+      {/* ─── Date Filters Bar ──────────────────────────────────────────── */}
       <div className="reports-filter-bar glass-card">
         {activeTab === 'BALANCE_SHEET' || activeTab === 'TRIAL_BALANCE' ? (
           <div className="filter-group">
@@ -182,363 +276,563 @@ export function ReportsPage() {
 
       {!loading && (
         <div className="report-content">
-          {/* BALANCE SHEET TAB */}
-          {activeTab === 'BALANCE_SHEET' && balanceSheet && (
-            <div className="report-sheet">
-              <div className="report-status-banner glass-card mb-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-muted">Balance Sheet Status</div>
-                    <div className="text-lg font-semibold" style={{ color: balanceSheet.isBalanced ? 'var(--color-credit)' : 'var(--color-danger)' }}>
-                      {balanceSheet.isBalanced ? '✓ Equation Balanced (Assets = Liabilities + Equity)' : '⚠ Discrepancy Detected'}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-muted">Total Assets</div>
-                    <div className="font-mono text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                      {fmt(balanceSheet.assets.totalAssets)}
-                    </div>
-                  </div>
-                </div>
+          {/* ─── Formal Printable Letterhead (Printed on Paper / Export) ──── */}
+          <div className="print-letterhead">
+            <div className="print-letterhead-top">
+              <div>
+                <h2 className="print-company-name">VoiceTally Financial Systems</h2>
+                <div className="print-company-sub">Zero-Discrepancy Double-Entry Accounting Ledger</div>
               </div>
+              <div className="print-meta-box">
+                <div><strong>Entity:</strong> {user?.name || 'Authorized Account'}</div>
+                <div><strong>Printed:</strong> {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                <div><strong>Reporting Currency:</strong> Indian Rupee (₹)</div>
+              </div>
+            </div>
+            <div className="print-statement-banner">
+              <span className="print-statement-name">
+                {activeTab === 'PROFIT_LOSS' && 'STATEMENT OF PROFIT & LOSS'}
+                {activeTab === 'BALANCE_SHEET' && 'STATEMENT OF FINANCIAL POSITION (BALANCE SHEET)'}
+                {activeTab === 'CASH_FLOW' && 'STATEMENT OF CASH FLOWS'}
+                {activeTab === 'TRIAL_BALANCE' && 'STATEMENT OF TRIAL BALANCE'}
+              </span>
+              <span className="print-period-badge">
+                {activeTab === 'BALANCE_SHEET' || activeTab === 'TRIAL_BALANCE'
+                  ? `As of ${formatAsOfLabel(asOfDate)}`
+                  : `Reporting Period: ${formatAsOfLabel(startDate)} to ${formatAsOfLabel(endDate)}`}
+              </span>
+            </div>
+          </div>
 
-              <div className="balance-sheet-grid">
-                {/* Left Column: ASSETS */}
-                <div className="report-column glass-card">
-                  <div className="column-header">
-                    <h2>Assets</h2>
-                    <span className="amount-header">{fmt(balanceSheet.assets.totalAssets)}</span>
-                  </div>
+          {/* ════════════════════════════════════════════════════════════════
+              1. FORMAL TABLE FORMAT VIEW (Matches User Provided Screenshot)
+              ════════════════════════════════════════════════════════════════ */}
+          <div className={viewMode === 'TABLE' ? 'report-table-view' : 'report-table-view-print-only'}>
+            {/* ─── P&L TABLE FORMAT ─────────────────────────────────────── */}
+            {activeTab === 'PROFIT_LOSS' && pnl && (
+              <div className="statement-table-card">
+                <table className="statement-formal-table">
+                  <thead>
+                    <tr>
+                      <th>P&L (₹)</th>
+                      <th className="col-amount">{formatPeriodLabel(startDate, endDate)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="row-category">
+                      <td>Revenues</td>
+                      <td className="col-amount">{fmtAccounting(totalRevenue)}</td>
+                    </tr>
+                    {incomeAccounts.map((a: any) => (
+                      <tr key={a.accountId} className="item-indent">
+                        <td>{a.accountName}</td>
+                        <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                      </tr>
+                    ))}
 
-                  <div className="section-block">
-                    <h3>Cash & Bank Equivalents</h3>
+                    <tr>
+                      <td>Cost of goods sold</td>
+                      <td className="col-amount">{totalCogs > 0 ? `(${fmtAccounting(totalCogs)})` : '0'}</td>
+                    </tr>
+                    {cogsAccounts.map((a: any) => (
+                      <tr key={a.accountId} className="item-indent">
+                        <td>{a.accountName}</td>
+                        <td className="col-amount">({fmtAccounting(a.amount)})</td>
+                      </tr>
+                    ))}
+
+                    <tr className="row-subtotal">
+                      <td>Gross profit</td>
+                      <td className="col-amount">{fmtAccounting(grossProfit)}</td>
+                    </tr>
+
+                    <tr>
+                      <td>Capitalized expenses</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+
+                    <tr className="row-category">
+                      <td>Operating Expenses (SG&A)</td>
+                      <td className="col-amount">
+                        {totalOperatingExpense > 0 ? `(${fmtAccounting(totalOperatingExpense)})` : '0'}
+                      </td>
+                    </tr>
+                    {operatingExpenseAccounts.length === 0 ? (
+                      <tr className="item-indent">
+                        <td>General operating expenses</td>
+                        <td className="col-amount">0</td>
+                      </tr>
+                    ) : (
+                      operatingExpenseAccounts.map((a: any) => (
+                        <tr key={a.accountId} className="item-indent">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">({fmtAccounting(a.amount)})</td>
+                        </tr>
+                      ))
+                    )}
+
+                    <tr>
+                      <td>Subsidies</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Lease rentals</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Other operating income</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Other operating expenses</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+
+                    <tr className="row-subtotal">
+                      <td>EBITDA</td>
+                      <td className="col-amount">{fmtAccounting(operatingIncome)}</td>
+                    </tr>
+
+                    <tr>
+                      <td>D&A</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+
+                    <tr className="row-subtotal">
+                      <td>Operating income</td>
+                      <td className="col-amount">{fmtAccounting(operatingIncome)}</td>
+                    </tr>
+
+                    <tr>
+                      <td>Financial income</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Financial expenses</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Profit (loss) on disposal</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Exceptional income</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+                    <tr>
+                      <td>Exceptional expenses</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+
+                    <tr className="row-subtotal">
+                      <td>Profit before tax</td>
+                      <td className="col-amount">{fmtAccounting(netIncome)}</td>
+                    </tr>
+
+                    <tr>
+                      <td>Corporation tax</td>
+                      <td className="col-amount">0</td>
+                    </tr>
+
+                    <tr className="row-total">
+                      <td>Net income</td>
+                      <td className="col-amount">{fmtAccounting(netIncome)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ─── BALANCE SHEET TABLE FORMAT ──────────────────────────── */}
+            {activeTab === 'BALANCE_SHEET' && balanceSheet && (
+              <div className="statement-table-card">
+                <table className="statement-formal-table">
+                  <thead>
+                    <tr>
+                      <th>Balance Sheet (₹)</th>
+                      <th className="col-amount">As of {formatAsOfLabel(asOfDate)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="row-category">
+                      <td>1. ASSETS</td>
+                      <td className="col-amount"></td>
+                    </tr>
+                    <tr className="item-indent">
+                      <td><strong>Cash & Bank Equivalents</strong></td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {balanceSheet.assets.cashAndBank.length === 0 ? (
-                      <div className="empty-subtext">None</div>
+                      <tr className="item-indent-deep"><td>No cash/bank accounts registered</td><td className="col-amount">0</td></tr>
                     ) : (
                       balanceSheet.assets.cashAndBank.map((a: any) => (
-                        <div key={a.accountId} className="report-line">
-                          <span>{a.accountName}</span>
-                          <span className="font-mono">{fmt(a.amount)}</span>
-                        </div>
+                        <tr key={a.accountId} className="item-indent-deep">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                        </tr>
                       ))
                     )}
-                  </div>
 
-                  <div className="section-block">
-                    <h3>Receivables (Sundry Debtors)</h3>
+                    <tr className="item-indent">
+                      <td><strong>Receivables (Sundry Debtors)</strong></td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {balanceSheet.assets.receivables.length === 0 ? (
-                      <div className="empty-subtext">None</div>
+                      <tr className="item-indent-deep"><td>No trade receivables</td><td className="col-amount">0</td></tr>
                     ) : (
                       balanceSheet.assets.receivables.map((a: any) => (
-                        <div key={a.accountId} className="report-line">
-                          <span>{a.accountName}</span>
-                          <span className="font-mono">{fmt(a.amount)}</span>
-                        </div>
+                        <tr key={a.accountId} className="item-indent-deep">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                        </tr>
                       ))
                     )}
-                  </div>
 
-                  {balanceSheet.assets.otherAssets.length > 0 && (
-                    <div className="section-block">
-                      <h3>Other Assets</h3>
-                      {balanceSheet.assets.otherAssets.map((a: any) => (
-                        <div key={a.accountId} className="report-line">
-                          <span>{a.accountName}</span>
-                          <span className="font-mono">{fmt(a.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    {balanceSheet.assets.otherAssets.length > 0 && (
+                      <>
+                        <tr className="item-indent">
+                          <td><strong>Other Assets</strong></td>
+                          <td className="col-amount"></td>
+                        </tr>
+                        {balanceSheet.assets.otherAssets.map((a: any) => (
+                          <tr key={a.accountId} className="item-indent-deep">
+                            <td>{a.accountName}</td>
+                            <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                          </tr>
+                        ))}
+                      </>
+                    )}
 
-                  <div className="column-footer">
-                    <span>Total Assets</span>
-                    <span className="font-mono">{fmt(balanceSheet.assets.totalAssets)}</span>
-                  </div>
-                </div>
+                    <tr className="row-total">
+                      <td>Total Assets</td>
+                      <td className="col-amount">{fmtAccounting(balanceSheet.assets.totalAssets)}</td>
+                    </tr>
 
-                {/* Right Column: LIABILITIES & EQUITY */}
-                <div className="report-column glass-card">
-                  <div className="column-header">
-                    <h2>Liabilities & Equity</h2>
-                    <span className="amount-header">{fmt(balanceSheet.totalLiabilitiesAndEquity)}</span>
-                  </div>
-
-                  {/* Liabilities */}
-                  <div className="section-block">
-                    <h3>Payables (Sundry Creditors)</h3>
+                    <tr className="row-category" style={{ paddingTop: 16 }}>
+                      <td>2. LIABILITIES</td>
+                      <td className="col-amount"></td>
+                    </tr>
+                    <tr className="item-indent">
+                      <td><strong>Payables (Sundry Creditors)</strong></td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {balanceSheet.liabilities.payables.length === 0 ? (
-                      <div className="empty-subtext">None</div>
+                      <tr className="item-indent-deep"><td>No trade payables</td><td className="col-amount">0</td></tr>
                     ) : (
                       balanceSheet.liabilities.payables.map((a: any) => (
-                        <div key={a.accountId} className="report-line">
-                          <span>{a.accountName}</span>
-                          <span className="font-mono">{fmt(a.amount)}</span>
-                        </div>
+                        <tr key={a.accountId} className="item-indent-deep">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                        </tr>
                       ))
                     )}
-                  </div>
 
-                  {balanceSheet.liabilities.otherLiabilities.length > 0 && (
-                    <div className="section-block">
-                      <h3>Other Liabilities</h3>
-                      {balanceSheet.liabilities.otherLiabilities.map((a: any) => (
-                        <div key={a.accountId} className="report-line">
-                          <span>{a.accountName}</span>
-                          <span className="font-mono">{fmt(a.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    {balanceSheet.liabilities.otherLiabilities.length > 0 && (
+                      <>
+                        <tr className="item-indent">
+                          <td><strong>Other Liabilities</strong></td>
+                          <td className="col-amount"></td>
+                        </tr>
+                        {balanceSheet.liabilities.otherLiabilities.map((a: any) => (
+                          <tr key={a.accountId} className="item-indent-deep">
+                            <td>{a.accountName}</td>
+                            <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                          </tr>
+                        ))}
+                      </>
+                    )}
 
-                  <div className="subtotal-line">
-                    <span>Total Liabilities</span>
-                    <span className="font-mono">{fmt(balanceSheet.liabilities.totalLiabilities)}</span>
-                  </div>
+                    <tr className="row-subtotal">
+                      <td>Total Liabilities</td>
+                      <td className="col-amount">{fmtAccounting(balanceSheet.liabilities.totalLiabilities)}</td>
+                    </tr>
 
-                  {/* Equity */}
-                  <div className="section-block mt-md">
-                    <h3>Equity & Reserves</h3>
+                    <tr className="row-category">
+                      <td>3. EQUITY & RESERVES</td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {balanceSheet.equity.capital.map((a: any) => (
-                      <div key={a.accountId} className="report-line">
-                        <span>{a.accountName}</span>
-                        <span className="font-mono">{fmt(a.amount)}</span>
-                      </div>
+                      <tr key={a.accountId} className="item-indent">
+                        <td>{a.accountName}</td>
+                        <td className="col-amount">{fmtAccounting(a.amount)}</td>
+                      </tr>
                     ))}
-                    <div className="report-line">
-                      <span>Current Period Net Earnings</span>
-                      <span className="font-mono" style={{ color: parseFloat(balanceSheet.equity.currentPeriodEarnings) >= 0 ? 'var(--color-credit)' : 'var(--color-danger)' }}>
-                        {fmt(balanceSheet.equity.currentPeriodEarnings)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="subtotal-line">
-                    <span>Total Equity</span>
-                    <span className="font-mono">{fmt(balanceSheet.equity.totalEquity)}</span>
-                  </div>
-
-                  <div className="column-footer">
-                    <span>Total Liabilities + Equity</span>
-                    <span className="font-mono">{fmt(balanceSheet.totalLiabilitiesAndEquity)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* PROFIT & LOSS TAB */}
-          {activeTab === 'PROFIT_LOSS' && pnl && (
-            <div className="report-sheet">
-              <div className="pnl-summary-grid mb-lg">
-                <div className="dashboard-card glass-card">
-                  <div className="dashboard-card-label">Total Revenue</div>
-                  <div className="dashboard-card-value income">{fmt(pnl.totalIncome)}</div>
-                  <div className="dashboard-card-count">{pnl.incomeAccounts.length} Income streams</div>
-                </div>
-                <div className="dashboard-card glass-card">
-                  <div className="dashboard-card-label">Total Expenses</div>
-                  <div className="dashboard-card-value expenses">{fmt(pnl.totalExpense)}</div>
-                  <div className="dashboard-card-count">{pnl.expenseAccounts.length} Expense categories</div>
-                </div>
-                <div className="dashboard-card glass-card">
-                  <div className="dashboard-card-label">Net Profit / Loss</div>
-                  <div className={`dashboard-card-value ${pnl.isProfitable ? 'income' : 'expenses'}`}>
-                    {fmt(pnl.netProfit)}
-                  </div>
-                  <div className="dashboard-card-count">{pnl.isProfitable ? 'Profitable Period' : 'Operating Deficit'}</div>
-                </div>
-              </div>
-
-              <div className="data-table-wrapper mb-lg">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Account Category</th>
-                      <th style={{ textAlign: 'right' }}>Amount (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="section-row"><td colSpan={2}>Operating Income / Revenue</td></tr>
-                    {pnl.incomeAccounts.length === 0 ? (
-                      <tr><td colSpan={2} className="text-muted text-center">No income recorded for this period</td></tr>
-                    ) : (
-                      pnl.incomeAccounts.map((a: any) => (
-                        <tr key={a.accountId}>
-                          <td style={{ paddingLeft: 32 }}>{a.accountName}</td>
-                          <td className="amount credit">{fmt(a.amount)}</td>
-                        </tr>
-                      ))
-                    )}
-                    <tr className="subtotal-table-row">
-                      <td>Total Income</td>
-                      <td className="amount credit">{fmt(pnl.totalIncome)}</td>
+                    <tr className="item-indent">
+                      <td>Current Period Net Earnings</td>
+                      <td className="col-amount">{fmtAccounting(balanceSheet.equity.currentPeriodEarnings)}</td>
                     </tr>
 
-                    <tr className="section-row"><td colSpan={2}>Operating Expenses</td></tr>
-                    {pnl.expenseAccounts.length === 0 ? (
-                      <tr><td colSpan={2} className="text-muted text-center">No expenses recorded for this period</td></tr>
-                    ) : (
-                      pnl.expenseAccounts.map((a: any) => (
-                        <tr key={a.accountId}>
-                          <td style={{ paddingLeft: 32 }}>{a.accountName}</td>
-                          <td className="amount debit">{fmt(a.amount)}</td>
-                        </tr>
-                      ))
-                    )}
-                    <tr className="subtotal-table-row">
-                      <td>Total Expenses</td>
-                      <td className="amount debit">{fmt(pnl.totalExpense)}</td>
+                    <tr className="row-subtotal">
+                      <td>Total Equity</td>
+                      <td className="col-amount">{fmtAccounting(balanceSheet.equity.totalEquity)}</td>
                     </tr>
 
-                    <tr className="total-table-row">
-                      <td><strong>Net Profit / (Loss)</strong></td>
-                      <td className={`amount ${pnl.isProfitable ? 'credit' : 'debit'}`} style={{ fontSize: 'var(--text-lg)' }}>
-                        {fmt(pnl.netProfit)}
-                      </td>
+                    <tr className="row-total">
+                      <td>Total Liabilities + Equity</td>
+                      <td className="col-amount">{fmtAccounting(balanceSheet.totalLiabilitiesAndEquity)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* CASH FLOW TAB */}
-          {activeTab === 'CASH_FLOW' && cashFlow && (
-            <div className="report-sheet">
-              <div className="pnl-summary-grid mb-lg">
-                <div className="dashboard-card glass-card">
-                  <div className="dashboard-card-label">Opening Cash Balance</div>
-                  <div className="dashboard-card-value font-mono">{fmt(cashFlow.openingCashBalance)}</div>
-                </div>
-                <div className="dashboard-card glass-card">
-                  <div className="dashboard-card-label">Net Cash Movement</div>
-                  <div className={`dashboard-card-value font-mono ${parseFloat(cashFlow.netCashFlow) >= 0 ? 'income' : 'expenses'}`}>
-                    {fmt(cashFlow.netCashFlow)}
-                  </div>
-                </div>
-                <div className="dashboard-card glass-card">
-                  <div className="dashboard-card-label">Closing Cash Balance</div>
-                  <div className="dashboard-card-value font-mono">{fmt(cashFlow.closingCashBalance)}</div>
-                </div>
-              </div>
-
-              <div className="data-table-wrapper">
-                <table className="data-table">
+            {/* ─── CASH FLOW TABLE FORMAT ──────────────────────────────── */}
+            {activeTab === 'CASH_FLOW' && cashFlow && (
+              <div className="statement-table-card">
+                <table className="statement-formal-table">
                   <thead>
                     <tr>
-                      <th>Activity / Flow Breakdown</th>
-                      <th style={{ textAlign: 'right' }}>Cash Impact (₹)</th>
+                      <th>Cash Flow Statement (₹)</th>
+                      <th className="col-amount">{formatPeriodLabel(startDate, endDate)}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="section-row"><td colSpan={2}>1. Cash Flow from Operating Activities</td></tr>
+                    <tr className="row-subtotal">
+                      <td>Opening Cash & Bank Balance</td>
+                      <td className="col-amount">{fmtAccounting(cashFlow.openingCashBalance)}</td>
+                    </tr>
+
+                    <tr className="row-category">
+                      <td>1. Cash Flow from Operating Activities</td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {cashFlow.operatingActivities.length === 0 ? (
-                      <tr><td colSpan={2} className="text-muted text-center">No operating transactions</td></tr>
+                      <tr className="item-indent"><td>No operating transactions recorded</td><td className="col-amount">0</td></tr>
                     ) : (
                       cashFlow.operatingActivities.map((a: any, i: number) => (
-                        <tr key={i}>
-                          <td style={{ paddingLeft: 32 }}>{a.accountName}</td>
-                          <td className={`amount ${parseFloat(a.amount) >= 0 ? 'credit' : 'debit'}`}>{fmt(a.amount)}</td>
+                        <tr key={i} className="item-indent">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">{fmtAccounting(a.amount)}</td>
                         </tr>
                       ))
                     )}
-                    <tr className="subtotal-table-row">
+                    <tr className="row-subtotal">
                       <td>Net Cash from Operating Activities</td>
-                      <td className={`amount ${parseFloat(cashFlow.totalOperating) >= 0 ? 'credit' : 'debit'}`}>{fmt(cashFlow.totalOperating)}</td>
+                      <td className="col-amount">{fmtAccounting(cashFlow.totalOperating)}</td>
                     </tr>
 
-                    <tr className="section-row"><td colSpan={2}>2. Cash Flow from Investing Activities (Debts/Loans/Assets)</td></tr>
+                    <tr className="row-category">
+                      <td>2. Cash Flow from Investing Activities</td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {cashFlow.investingActivities.length === 0 ? (
-                      <tr><td colSpan={2} className="text-muted text-center">No investing transactions</td></tr>
+                      <tr className="item-indent"><td>No investing transactions recorded</td><td className="col-amount">0</td></tr>
                     ) : (
                       cashFlow.investingActivities.map((a: any, i: number) => (
-                        <tr key={i}>
-                          <td style={{ paddingLeft: 32 }}>{a.accountName}</td>
-                          <td className={`amount ${parseFloat(a.amount) >= 0 ? 'credit' : 'debit'}`}>{fmt(a.amount)}</td>
+                        <tr key={i} className="item-indent">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">{fmtAccounting(a.amount)}</td>
                         </tr>
                       ))
                     )}
-                    <tr className="subtotal-table-row">
+                    <tr className="row-subtotal">
                       <td>Net Cash from Investing Activities</td>
-                      <td className={`amount ${parseFloat(cashFlow.totalInvesting) >= 0 ? 'credit' : 'debit'}`}>{fmt(cashFlow.totalInvesting)}</td>
+                      <td className="col-amount">{fmtAccounting(cashFlow.totalInvesting)}</td>
                     </tr>
 
-                    <tr className="section-row"><td colSpan={2}>3. Cash Flow from Financing Activities (Capital/Dividends)</td></tr>
+                    <tr className="row-category">
+                      <td>3. Cash Flow from Financing Activities</td>
+                      <td className="col-amount"></td>
+                    </tr>
                     {cashFlow.financingActivities.length === 0 ? (
-                      <tr><td colSpan={2} className="text-muted text-center">No financing transactions</td></tr>
+                      <tr className="item-indent"><td>No financing transactions recorded</td><td className="col-amount">0</td></tr>
                     ) : (
                       cashFlow.financingActivities.map((a: any, i: number) => (
-                        <tr key={i}>
-                          <td style={{ paddingLeft: 32 }}>{a.accountName}</td>
-                          <td className={`amount ${parseFloat(a.amount) >= 0 ? 'credit' : 'debit'}`}>{fmt(a.amount)}</td>
+                        <tr key={i} className="item-indent">
+                          <td>{a.accountName}</td>
+                          <td className="col-amount">{fmtAccounting(a.amount)}</td>
                         </tr>
                       ))
                     )}
-                    <tr className="subtotal-table-row">
+                    <tr className="row-subtotal">
                       <td>Net Cash from Financing Activities</td>
-                      <td className={`amount ${parseFloat(cashFlow.totalFinancing) >= 0 ? 'credit' : 'debit'}`}>{fmt(cashFlow.totalFinancing)}</td>
+                      <td className="col-amount">{fmtAccounting(cashFlow.totalFinancing)}</td>
                     </tr>
 
-                    <tr className="total-table-row">
-                      <td><strong>Net Increase / (Decrease) in Cash Equivalents</strong></td>
-                      <td className={`amount ${parseFloat(cashFlow.netCashFlow) >= 0 ? 'credit' : 'debit'}`} style={{ fontSize: 'var(--text-lg)' }}>
-                        {fmt(cashFlow.netCashFlow)}
-                      </td>
+                    <tr className="row-subtotal">
+                      <td>Net Increase / (Decrease) in Cash Equivalents</td>
+                      <td className="col-amount">{fmtAccounting(cashFlow.netCashFlow)}</td>
+                    </tr>
+
+                    <tr className="row-total">
+                      <td>Closing Cash & Bank Balance</td>
+                      <td className="col-amount">{fmtAccounting(cashFlow.closingCashBalance)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* TRIAL BALANCE TAB */}
-          {activeTab === 'TRIAL_BALANCE' && trialBalance && (
-            <div className="report-sheet">
-              <div className="report-status-banner glass-card mb-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-muted">Trial Balance Verification</div>
-                    <div className="text-lg font-semibold" style={{ color: trialBalance.isBalanced ? 'var(--color-credit)' : 'var(--color-danger)' }}>
-                      {trialBalance.isBalanced ? '✓ Total Debits Equal Total Credits' : '⚠ Imbalance in Ledger'}
-                    </div>
-                  </div>
-                  <div className="text-right font-mono">
-                    <div className="text-sm text-muted">Total Debits / Credits</div>
-                    <div className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                      {fmt(trialBalance.totalDebit)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="data-table-wrapper">
-                <table className="data-table">
+            {/* ─── TRIAL BALANCE TABLE FORMAT ──────────────────────────── */}
+            {activeTab === 'TRIAL_BALANCE' && trialBalance && (
+              <div className="statement-table-card">
+                <table className="statement-formal-table">
                   <thead>
                     <tr>
                       <th>Account Name</th>
                       <th>Type</th>
-                      <th style={{ textAlign: 'right' }}>Debit Balance (₹)</th>
-                      <th style={{ textAlign: 'right' }}>Credit Balance (₹)</th>
+                      <th className="col-amount-split">Debit (Dr) (₹)</th>
+                      <th className="col-amount-split">Credit (Cr) (₹)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {trialBalance.rows.map((r: any) => (
                       <tr key={r.accountId}>
-                        <td style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.accountName}</td>
+                        <td style={{ fontWeight: 600 }}>{r.accountName}</td>
                         <td><span className={`badge badge-${r.type.toLowerCase()}`}>{r.type}</span></td>
-                        <td className="amount debit">{parseFloat(r.debitBalance) > 0 ? fmt(r.debitBalance) : '—'}</td>
-                        <td className="amount credit">{parseFloat(r.creditBalance) > 0 ? fmt(r.creditBalance) : '—'}</td>
+                        <td className="col-amount">{parseFloat(r.debitBalance) > 0 ? fmtAccounting(r.debitBalance) : '0'}</td>
+                        <td className="col-amount">{parseFloat(r.creditBalance) > 0 ? fmtAccounting(r.creditBalance) : '0'}</td>
                       </tr>
                     ))}
-                    <tr className="total-table-row">
-                      <td><strong>Grand Totals</strong></td>
+                    <tr className="row-total">
+                      <td>Grand Totals</td>
                       <td></td>
-                      <td className="amount debit font-semibold" style={{ fontSize: 'var(--text-base)' }}>{fmt(trialBalance.totalDebit)}</td>
-                      <td className="amount credit font-semibold" style={{ fontSize: 'var(--text-base)' }}>{fmt(trialBalance.totalCredit)}</td>
+                      <td className="col-amount">{fmtAccounting(trialBalance.totalDebit)}</td>
+                      <td className="col-amount">{fmtAccounting(trialBalance.totalCredit)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+
+          {/* ════════════════════════════════════════════════════════════════
+              2. VISUAL BI CARDS VIEW (Optional screen interactive toggle)
+              ════════════════════════════════════════════════════════════════ */}
+          {viewMode === 'CARDS' && (
+            <div className="report-cards-view">
+              {/* BALANCE SHEET CARDS */}
+              {activeTab === 'BALANCE_SHEET' && balanceSheet && (
+                <div className="report-sheet">
+                  <div className="report-status-banner glass-card mb-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-muted">Balance Sheet Status</div>
+                        <div className="text-lg font-semibold" style={{ color: balanceSheet.isBalanced ? 'var(--color-credit)' : 'var(--color-danger)' }}>
+                          {balanceSheet.isBalanced ? '✓ Equation Balanced (Assets = Liabilities + Equity)' : '⚠ Discrepancy Detected'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted">Total Assets</div>
+                        <div className="font-mono text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                          {fmt(balanceSheet.assets.totalAssets)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="balance-sheet-grid">
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>Assets</h2>
+                        <span className="amount-header">{fmt(balanceSheet.assets.totalAssets)}</span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Cash & Bank Equivalents</h3>
+                        {balanceSheet.assets.cashAndBank.length === 0 ? (
+                          <div className="empty-subtext">None</div>
+                        ) : (
+                          balanceSheet.assets.cashAndBank.map((a: any) => (
+                            <div key={a.accountId} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="section-block">
+                        <h3>Receivables (Sundry Debtors)</h3>
+                        {balanceSheet.assets.receivables.length === 0 ? (
+                          <div className="empty-subtext">None</div>
+                        ) : (
+                          balanceSheet.assets.receivables.map((a: any) => (
+                            <div key={a.accountId} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Total Assets</span>
+                        <span className="font-mono">{fmt(balanceSheet.assets.totalAssets)}</span>
+                      </div>
+                    </div>
+
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>Liabilities & Equity</h2>
+                        <span className="amount-header">{fmt(balanceSheet.totalLiabilitiesAndEquity)}</span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Payables (Sundry Creditors)</h3>
+                        {balanceSheet.liabilities.payables.length === 0 ? (
+                          <div className="empty-subtext">None</div>
+                        ) : (
+                          balanceSheet.liabilities.payables.map((a: any) => (
+                            <div key={a.accountId} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="subtotal-line">
+                        <span>Total Liabilities</span>
+                        <span className="font-mono">{fmt(balanceSheet.liabilities.totalLiabilities)}</span>
+                      </div>
+                      <div className="section-block mt-md">
+                        <h3>Equity & Reserves</h3>
+                        {balanceSheet.equity.capital.map((a: any) => (
+                          <div key={a.accountId} className="report-line">
+                            <span>{a.accountName}</span>
+                            <span className="font-mono">{fmt(a.amount)}</span>
+                          </div>
+                        ))}
+                        <div className="report-line">
+                          <span>Current Period Net Earnings</span>
+                          <span className="font-mono" style={{ color: parseFloat(balanceSheet.equity.currentPeriodEarnings) >= 0 ? 'var(--color-credit)' : 'var(--color-danger)' }}>
+                            {fmt(balanceSheet.equity.currentPeriodEarnings)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="subtotal-line">
+                        <span>Total Equity</span>
+                        <span className="font-mono">{fmt(balanceSheet.equity.totalEquity)}</span>
+                      </div>
+                      <div className="column-footer">
+                        <span>Total Liabilities + Equity</span>
+                        <span className="font-mono">{fmt(balanceSheet.totalLiabilitiesAndEquity)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PROFIT & LOSS CARDS */}
+              {activeTab === 'PROFIT_LOSS' && pnl && (
+                <div className="report-sheet">
+                  <div className="pnl-summary-grid mb-lg">
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Total Revenue</div>
+                      <div className="dashboard-card-value income">{fmt(pnl.totalIncome)}</div>
+                      <div className="dashboard-card-count">{pnl.incomeAccounts.length} Income streams</div>
+                    </div>
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Total Expenses</div>
+                      <div className="dashboard-card-value expenses">{fmt(pnl.totalExpense)}</div>
+                      <div className="dashboard-card-count">{pnl.expenseAccounts.length} Expense categories</div>
+                    </div>
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Net Profit / Loss</div>
+                      <div className={`dashboard-card-value ${pnl.isProfitable ? 'income' : 'expenses'}`}>
+                        {fmt(pnl.netProfit)}
+                      </div>
+                      <div className="dashboard-card-count">{pnl.isProfitable ? 'Profitable Period' : 'Operating Deficit'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

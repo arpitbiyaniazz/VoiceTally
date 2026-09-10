@@ -243,14 +243,234 @@
   }
 }
 
+/* ─── Header View Toggle & Print Controls ────────────────────────────────── */
+.reports-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.statement-view-toggle {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.view-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.view-toggle-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.view-toggle-btn.active {
+  background: #1e70bf;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(30, 112, 191, 0.4);
+}
+
+/* ─── Formal Financial Statement Table (Corporate Print Design) ─────────── */
+.statement-table-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  margin-bottom: var(--space-xl);
+  color: #0f172a;
+}
+
+.statement-formal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* Iconic corporate blue header matching screenshot */
+.statement-formal-table thead tr {
+  background: #1e70bf;
+  color: #ffffff;
+}
+
+.statement-formal-table th {
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  border: none;
+}
+
+.statement-formal-table th.col-amount {
+  text-align: right;
+  width: 240px;
+}
+
+.statement-formal-table th.col-amount-split {
+  text-align: right;
+  width: 180px;
+}
+
+.statement-formal-table td {
+  padding: 8px 20px;
+  font-size: 0.92rem;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.statement-formal-table td.col-amount {
+  text-align: right;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Row hierarchy & Indentations */
+.statement-formal-table tr.item-indent td:first-child {
+  padding-left: 36px;
+  color: #334155;
+}
+
+.statement-formal-table tr.item-indent-deep td:first-child {
+  padding-left: 52px;
+  color: #475569;
+}
+
+.statement-formal-table tr.row-category td {
+  font-weight: 700;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.statement-formal-table tr.row-subtotal td {
+  font-weight: 700;
+  color: #0f172a;
+  border-top: 1px solid #0f172a;
+  background: #f8fafc;
+}
+
+.statement-formal-table tr.row-subtotal-light td {
+  font-weight: 700;
+  color: #1e293b;
+  border-top: 1px dashed #cbd5e1;
+  background: #fdfdfd;
+}
+
+/* Classic double underline for final totals (Gross Profit, Net Income, Total Liabilities & Equity) */
+.statement-formal-table tr.row-total td {
+  font-weight: 800;
+  font-size: 0.98rem;
+  color: #0f172a;
+  border-top: 1px solid #0f172a;
+  border-bottom: 3px double #0f172a;
+  background: #f1f5f9;
+}
+
+/* ─── Printable Document Header (Letterhead) ─────────────────────────────── */
+.print-letterhead {
+  display: none;
+  border-bottom: 2px solid #1e70bf;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.print-letterhead-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.print-company-name {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.print-company-sub {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.print-meta-box {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.print-statement-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 8px 14px;
+  border-left: 4px solid #1e70bf;
+  border-radius: 4px;
+}
+
+.print-statement-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.print-period-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e70bf;
+}
+
+.report-table-view-print-only {
+  display: none;
+}
+
 /* ─── Print Styles ───────────────────────────────────────────────────────── */
 @media print {
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+
+  /* Hide navigation, buttons, tabs, sidebars, modals */
   .sidebar,
   .mobile-topbar,
   .mobile-bottom-nav,
   .desktop-voice-fab,
   .reports-tabs,
-  .reports-filter-bar button,
+  .reports-filter-bar,
+  .statement-view-toggle,
+  .page-header,
+  .report-status-banner,
+  .pnl-summary-grid,
   .btn {
     display: none !important;
   }
@@ -258,23 +478,78 @@
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    font-size: 11pt !important;
   }
 
   .app-main {
-    margin-left: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  .glass-card,
-  .data-table-wrapper {
-    background: #ffffff !important;
-    border: 1px solid #cccccc !important;
-    color: #000000 !important;
+  .page,
+  .page-container,
+  .reports-page {
+    padding: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     box-shadow: none !important;
   }
 
-  .data-table th,
-  .data-table td {
+  /* Show formal printable letterhead */
+  .print-letterhead {
+    display: block !important;
+  }
+
+  /* Always force Table Format in Print */
+  .report-cards-view {
+    display: none !important;
+  }
+
+  .report-table-view,
+  .report-table-view-print-only {
+    display: block !important;
+  }
+
+  .statement-table-card {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+  }
+
+  .statement-formal-table {
+    width: 100% !important;
+  }
+
+  .statement-formal-table thead tr,
+  .statement-formal-table th {
+    background: #1e70bf !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .statement-formal-table td {
     color: #000000 !important;
-    border-color: #dddddd !important;
+    border-color: #cbd5e1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .statement-formal-table tr.row-subtotal td {
+    border-top: 1px solid #000000 !important;
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .statement-formal-table tr.row-total td {
+    border-top: 1px solid #000000 !important;
+    border-bottom: 3px double #000000 !important;
+    background: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
+
