@@ -34,6 +34,7 @@ export interface TelegramIncomingUpdate {
       };
     };
   };
+  simulatedUserId?: string;
 }
 
 export interface TelegramBotReply {
@@ -41,6 +42,7 @@ export interface TelegramBotReply {
   text: string;
   parseMode?: 'HTML' | 'Markdown';
   inlineKeyboard?: Array<Array<{ text: string; callback_data: string }>>;
+  previewCard?: any;
   userId?: string;
   actionTaken?: 'PREVIEW' | 'POSTED' | 'CANCELLED' | 'QUERY' | 'PAIRED' | 'UNLINKED' | 'COMMAND' | 'UNKNOWN';
 }
@@ -83,7 +85,13 @@ export class TelegramBotService {
           await prisma.user.update({
             where: { id: matchedUser.id },
             data: {
-              telegramChatId: (chatId || fromId).toString(),
+              // Only persist a real Telegram chat ID. Simulator-driven pairing
+              // (simulatedUserId set) has no real chat identity — persisting the
+              // placeholder would collide with other simulated users and could
+              // overwrite a real linked account.
+              ...(update.simulatedUserId
+                ? {}
+                : { telegramChatId: (chatId || fromId || 99887766).toString() }),
               botPairingCode: null,
             },
           });
@@ -98,6 +106,12 @@ export class TelegramBotService {
         }
       }
 
+      if (!user && update.simulatedUserId) {
+        user = await prisma.user.findUnique({
+          where: { id: update.simulatedUserId },
+        });
+      }
+
       if (!user) {
         return {
           chatId,
@@ -106,6 +120,12 @@ export class TelegramBotService {
           actionTaken: 'UNLINKED',
         };
       }
+    }
+
+    if (!user && update.simulatedUserId) {
+      user = await prisma.user.findUnique({
+        where: { id: update.simulatedUserId },
+      });
     }
 
     if (!user) {
@@ -229,6 +249,7 @@ export class TelegramBotService {
           chatId,
           text: previewMsg,
           parseMode: 'HTML',
+          previewCard: data,
           inlineKeyboard: [
             [
               { text: '✅ Confirm & Post', callback_data: 'CONFIRM_YES' },

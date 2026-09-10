@@ -91,6 +91,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/ledger', ledgerRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/v1/integrations', integrationRoutes);
 
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────

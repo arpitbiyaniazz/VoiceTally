@@ -87,7 +87,10 @@ export const IntegrationsController = {
    */
   async handleTelegramWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const update = req.body;
+      // SECURITY: The public webhook must never accept a caller-supplied identity.
+      // 'simulatedUserId' is an internal-only field used by the authenticated
+      // simulator endpoint; strip it so external callers cannot impersonate users.
+      const { simulatedUserId: _stripped, ...update } = req.body ?? {};
       const reply = await TelegramBotService.handleUpdate(update);
 
       res.status(200).json({
@@ -150,8 +153,10 @@ export const IntegrationsController = {
           whatsappBotNumber: process.env.WHATSAPP_BOT_NUMBER || '+1 415 523 8886',
           telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || 'VoiceTallyBot',
           webhookUrls: {
-            whatsapp: '/api/v1/integrations/whatsapp/webhook',
-            telegram: '/api/v1/integrations/telegram/webhook',
+            whatsapp: '/api/integrations/whatsapp/webhook',
+            telegram: '/api/integrations/telegram/webhook',
+            whatsappV1: '/api/v1/integrations/whatsapp/webhook',
+            telegramV1: '/api/v1/integrations/telegram/webhook',
           },
         },
       });
@@ -201,6 +206,54 @@ export const IntegrationsController = {
         data: {
           phone: updated.phone,
           message: 'WhatsApp phone number successfully linked!',
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Link or update user's Telegram Chat ID or handle (POST /link-telegram)
+   */
+  async linkTelegram(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { userId } = req as AuthenticatedRequest;
+      const { telegramChatId } = req.body;
+
+      if (!telegramChatId || typeof telegramChatId !== 'string' || telegramChatId.trim().length < 2) {
+        throw new ValidationError('Valid Telegram Chat ID or username is required', {
+          telegramChatId: ['Please provide a valid Telegram username or numeric Chat ID'],
+        });
+      }
+
+      const cleaned = telegramChatId.trim().replace(/^@/, '');
+
+      // Check if already used by another user
+      const existing = await prisma.user.findFirst({
+        where: {
+          telegramChatId: cleaned,
+          id: { not: userId },
+        },
+      });
+
+      if (existing) {
+        throw new ValidationError('Telegram account already linked to another user', {
+          telegramChatId: ['This Telegram account is already associated with another VoiceTally account.'],
+        });
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { telegramChatId: cleaned },
+        select: { id: true, telegramChatId: true },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          telegramChatId: updated.telegramChatId,
+          message: 'Telegram account successfully linked!',
         },
       });
     } catch (error) {
@@ -286,6 +339,7 @@ export const IntegrationsController = {
             chat: { id: chatId, type: 'private' },
             text: message,
           },
+          simulatedUserId: userId,
         });
 
         res.status(200).json({
@@ -295,12 +349,15 @@ export const IntegrationsController = {
         return;
       }
 
-      // Default: WhatsApp simulation
-      const phone = user.phone || '+919999999999';
+      // Default: WhatsApp simulation. Use a unique placeholder per call so an
+      // unlinked user's PAIR command never overwrites another user's phone,
+      // and never persists a placeholder phone onto a real linked account.
+      const phone = user.phone || `+9999${Date.now().toString().slice(-9)}`;
       const reply = await WhatsAppBotService.handleMessage({
         from: phone,
         body: message,
         type: isVoice ? 'voice' : 'text',
+        simulatedUserId: userId,
       });
 
       res.status(200).json({
