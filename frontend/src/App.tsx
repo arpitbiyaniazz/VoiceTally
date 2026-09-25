@@ -15,12 +15,13 @@ import { ReportsPage } from './pages/ReportsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { VoiceStudioPage } from './pages/VoiceStudioPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
+import { LoadingScreen } from './components/common/LoadingScreen';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="loading-center"><div className="spinner" /></div>;
+    return <LoadingScreen message="Checking authentication and connecting to server..." />;
   }
 
   if (!user) {
@@ -34,7 +35,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="loading-center"><div className="spinner" /></div>;
+    return <LoadingScreen message="Connecting to server..." />;
   }
 
   if (user) {
