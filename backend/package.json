@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/worker.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
+    "start:prod": "prisma migrate deploy && (node dist/worker.js & node dist/server.js)",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:int": "vitest run tests/integration",

@@ -21,7 +21,7 @@ export type Config = z.infer<typeof configSchema>;
 function loadConfig(): Config {
   const result = configSchema.safeParse({
     nodeEnv: process.env.NODE_ENV,
-    apiPort: process.env.API_PORT,
+    apiPort: process.env.PORT || process.env.API_PORT || 3001,
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL,
     jwtSecret: process.env.JWT_SECRET,

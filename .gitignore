@@ -4,6 +4,7 @@ build/
 .env
 *.log
 .DS_Store
+.freebuff
 
 # Prisma
 backend/prisma/migrations/**/migration_lock.toml

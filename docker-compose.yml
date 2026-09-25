@@ -74,6 +74,8 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/web.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
     ports:
       - '5173:80'
