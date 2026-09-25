@@ -46,11 +46,11 @@ async function gracefulShutdown(signal: string) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-process.on('unhandledRejection', (reason) => {
+process.on('unhandledRejection', (reason: unknown) => {
   console.error('[Server] Unhandled Rejection:', reason);
 });
 
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err: Error | unknown) => {
   console.error('[Server] Uncaught Exception:', err);
   process.exit(1);
 });
