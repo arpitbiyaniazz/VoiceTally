@@ -307,32 +307,7 @@ export const VoiceStudioPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Trust & Security Badges */}
-          <div className="voice-trust-grid">
-            <div className="voice-trust-card">
-              <span className="voice-trust-icon">🛡️</span>
-              <div className="voice-trust-info">
-                <span className="voice-trust-name">Prompt Guard</span>
-                <span className="voice-trust-desc">Real-time injection sanitization before LLM reasoning.</span>
-              </div>
-            </div>
 
-            <div className="voice-trust-card">
-              <span className="voice-trust-icon">⚖️</span>
-              <div className="voice-trust-info">
-                <span className="voice-trust-name">Double-Entry</span>
-                <span className="voice-trust-desc">Strict Dr = Cr mathematical parity check on every voucher.</span>
-              </div>
-            </div>
-
-            <div className="voice-trust-card">
-              <span className="voice-trust-icon">🔐</span>
-              <div className="voice-trust-info">
-                <span className="voice-trust-name">2-Step Verify</span>
-                <span className="voice-trust-desc">Confirmation preview dialog protects financial ledger state.</span>
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* Right Column: Live Execution Stream */}
