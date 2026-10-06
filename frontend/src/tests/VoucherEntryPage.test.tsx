@@ -68,4 +68,36 @@ describe('UI: VoucherEntryPage Component', () => {
     expect(screen.getByText(/journal lines/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /\+ add line/i })).toBeInTheDocument();
   });
+
+  it('initializes with Receipt tab when navigated with ?type=RECEIPT', async () => {
+    // Dynamically import MemoryRouter to test query parameter initialization
+    const { MemoryRouter } = await import('react-router-dom');
+
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/vouchers?type=RECEIPT']}>
+          <VoucherEntryPage />
+        </MemoryRouter>
+      );
+    });
+
+    expect(screen.getByRole('button', { name: /post receipt/i })).toBeInTheDocument();
+    expect(screen.getByText('Income / Person Account')).toBeInTheDocument();
+  });
+
+  it('initializes with Contra tab when navigated with ?type=CONTRA', async () => {
+    const { MemoryRouter } = await import('react-router-dom');
+
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/vouchers?type=CONTRA']}>
+          <VoucherEntryPage />
+        </MemoryRouter>
+      );
+    });
+
+    expect(screen.getByRole('button', { name: /post contra/i })).toBeInTheDocument();
+    expect(screen.getByText('From Account')).toBeInTheDocument();
+    expect(screen.getByText('To Account')).toBeInTheDocument();
+  });
 });

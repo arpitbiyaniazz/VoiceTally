@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ledgerApi, type VoucherPayload } from '../api/ledger';
 import './VoucherEntryPage.css';
 
@@ -45,11 +46,42 @@ const VOUCHER_DESCRIPTIONS: Record<VoucherType, { title: string; desc: string; i
 };
 
 export function VoucherEntryPage() {
-  const [voucherType, setVoucherType] = useState<VoucherType>('PAYMENT');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawType = searchParams.get('type')?.toUpperCase();
+  const initialType: VoucherType =
+    rawType === 'PAYMENT' || rawType === 'RECEIPT' || rawType === 'CONTRA' || rawType === 'JOURNAL'
+      ? rawType
+      : 'PAYMENT';
+
+  const [voucherType, setVoucherType] = useState<VoucherType>(initialType);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  // Synchronize tab state with ?type= URL query parameter changes
+  useEffect(() => {
+    const currentParam = searchParams.get('type')?.toUpperCase();
+    if (
+      currentParam &&
+      (currentParam === 'PAYMENT' || currentParam === 'RECEIPT' || currentParam === 'CONTRA' || currentParam === 'JOURNAL')
+    ) {
+      if (currentParam !== voucherType) {
+        setVoucherType(currentParam);
+        resetForm();
+        setError('');
+        setSuccess('');
+      }
+    }
+  }, [searchParams]);
+
+  const selectVoucherType = (type: VoucherType) => {
+    setVoucherType(type);
+    setSearchParams({ type }, { replace: true });
+    resetForm();
+    setError('');
+    setSuccess('');
+  };
 
   // Common fields
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -193,11 +225,7 @@ export function VoucherEntryPage() {
             <div
               key={type}
               className={`voucher-type-card glass-card glass-card-interactive ${isSelected ? 'active ' + type.toLowerCase() : ''}`}
-              onClick={() => {
-                setVoucherType(type);
-                setError('');
-                setSuccess('');
-              }}
+              onClick={() => selectVoucherType(type)}
             >
               <div className="voucher-card-top">
                 <span className="voucher-card-icon">{info.icon}</span>

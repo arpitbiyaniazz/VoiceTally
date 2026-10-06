@@ -118,7 +118,15 @@ export function DashboardPage() {
       <div className="quick-actions-grid mb-lg">
         <div 
           className="quick-action-card glass-card glass-card-interactive" 
-          onClick={() => navigate('/vouchers')}
+          onClick={() => navigate('/vouchers?type=PAYMENT')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate('/vouchers?type=PAYMENT');
+            }
+          }}
         >
           <div className="quick-action-icon payment">💸</div>
           <div className="quick-action-content">
@@ -129,7 +137,15 @@ export function DashboardPage() {
 
         <div 
           className="quick-action-card glass-card glass-card-interactive" 
-          onClick={() => navigate('/vouchers')}
+          onClick={() => navigate('/vouchers?type=RECEIPT')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate('/vouchers?type=RECEIPT');
+            }
+          }}
         >
           <div className="quick-action-icon receipt">💰</div>
           <div className="quick-action-content">
@@ -140,7 +156,15 @@ export function DashboardPage() {
 
         <div 
           className="quick-action-card glass-card glass-card-interactive" 
-          onClick={() => navigate('/vouchers')}
+          onClick={() => navigate('/vouchers?type=CONTRA')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate('/vouchers?type=CONTRA');
+            }
+          }}
         >
           <div className="quick-action-icon contra">🏦</div>
           <div className="quick-action-content">
@@ -152,6 +176,14 @@ export function DashboardPage() {
         <div 
           className="quick-action-card glass-card glass-card-interactive" 
           onClick={() => navigate('/people')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate('/people');
+            }
+          }}
         >
           <div className="quick-action-icon people">👥</div>
           <div className="quick-action-content">
