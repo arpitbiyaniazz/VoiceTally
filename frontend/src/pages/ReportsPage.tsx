@@ -815,20 +815,367 @@ export function ReportsPage() {
                   <div className="pnl-summary-grid mb-lg">
                     <div className="dashboard-card glass-card">
                       <div className="dashboard-card-label">Total Revenue</div>
-                      <div className="dashboard-card-value income">{fmt(pnl.totalIncome)}</div>
+                      <div className="dashboard-card-value income font-mono">{fmt(pnl.totalIncome)}</div>
                       <div className="dashboard-card-count">{pnl.incomeAccounts.length} Income streams</div>
                     </div>
                     <div className="dashboard-card glass-card">
                       <div className="dashboard-card-label">Total Expenses</div>
-                      <div className="dashboard-card-value expenses">{fmt(pnl.totalExpense)}</div>
+                      <div className="dashboard-card-value expenses font-mono">{fmt(pnl.totalExpense)}</div>
                       <div className="dashboard-card-count">{pnl.expenseAccounts.length} Expense categories</div>
                     </div>
                     <div className="dashboard-card glass-card">
                       <div className="dashboard-card-label">Net Profit / Loss</div>
-                      <div className={`dashboard-card-value ${pnl.isProfitable ? 'income' : 'expenses'}`}>
+                      <div className={`dashboard-card-value font-mono ${pnl.isProfitable ? 'income' : 'expenses'}`}>
                         {fmt(pnl.netProfit)}
                       </div>
                       <div className="dashboard-card-count">{pnl.isProfitable ? 'Profitable Period' : 'Operating Deficit'}</div>
+                    </div>
+                  </div>
+
+                  <div className="balance-sheet-grid">
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>Revenue Streams</h2>
+                        <span className="amount-header income font-mono">{fmt(pnl.totalIncome)}</span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Operating Income Accounts</h3>
+                        {incomeAccounts.length === 0 ? (
+                          <div className="empty-subtext">No revenue recorded</div>
+                        ) : (
+                          incomeAccounts.map((a: any) => (
+                            <div key={a.accountId} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Total Operating Inflow</span>
+                        <span className="font-mono income">{fmt(pnl.totalIncome)}</span>
+                      </div>
+                    </div>
+
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>Operating Expenses</h2>
+                        <span className="amount-header expenses font-mono">{fmt(pnl.totalExpense)}</span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Operating Expenditures</h3>
+                        {expenseAccounts.length === 0 ? (
+                          <div className="empty-subtext">No expenses recorded</div>
+                        ) : (
+                          expenseAccounts.map((a: any) => (
+                            <div key={a.accountId} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Total Operating Outflow</span>
+                        <span className="font-mono expenses">{fmt(pnl.totalExpense)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CASH FLOW CARDS */}
+              {activeTab === 'CASH_FLOW' && cashFlow && (
+                <div className="report-sheet">
+                  {/* Status / Overview Banner */}
+                  <div className="report-status-banner glass-card mb-lg">
+                    <div className="flex items-center justify-between" style={{ width: '100%' }}>
+                      <div>
+                        <div className="text-sm text-muted">Cash & Liquidity Summary</div>
+                        <div
+                          className="text-lg font-semibold"
+                          style={{
+                            color:
+                              parseFloat(cashFlow.netCashFlow) >= 0 ? 'var(--color-credit)' : 'var(--color-danger)',
+                          }}
+                        >
+                          {parseFloat(cashFlow.netCashFlow) >= 0
+                            ? '✓ Positive Net Cash Position (Liquid Surplus)'
+                            : '⚠ Net Cash Outflow in Selected Period'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted">Closing Liquid Reserves</div>
+                        <div className="font-mono text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                          {fmt(cashFlow.closingCashBalance)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 KPI Summary Cards */}
+                  <div className="pnl-summary-grid mb-lg">
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Opening Cash & Bank</div>
+                      <div className="dashboard-card-value font-mono">{fmt(cashFlow.openingCashBalance)}</div>
+                      <div className="dashboard-card-count">Initial period balance</div>
+                    </div>
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Net Cash Flow</div>
+                      <div
+                        className={`dashboard-card-value font-mono ${
+                          parseFloat(cashFlow.netCashFlow) >= 0 ? 'income' : 'expenses'
+                        }`}
+                      >
+                        {fmt(cashFlow.netCashFlow)}
+                      </div>
+                      <div className="dashboard-card-count">
+                        {parseFloat(cashFlow.netCashFlow) >= 0 ? 'Net Cash Inflow' : 'Net Cash Outflow'}
+                      </div>
+                    </div>
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Closing Cash & Bank</div>
+                      <div className="dashboard-card-value income font-mono">{fmt(cashFlow.closingCashBalance)}</div>
+                      <div className="dashboard-card-count">Total ending cash & bank</div>
+                    </div>
+                  </div>
+
+                  {/* 3 Activity Breakdown Cards */}
+                  <div className="balance-sheet-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+                    {/* Operating Activities */}
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>1. Operating Activities</h2>
+                        <span
+                          className={`amount-header font-mono ${
+                            parseFloat(cashFlow.totalOperating) >= 0 ? 'income' : 'expenses'
+                          }`}
+                        >
+                          {fmt(cashFlow.totalOperating)}
+                        </span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Operating Collections & Payments</h3>
+                        {cashFlow.operatingActivities.length === 0 ? (
+                          <div className="empty-subtext">No operating transactions</div>
+                        ) : (
+                          cashFlow.operatingActivities.map((a: any, i: number) => (
+                            <div key={i} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Net Operating</span>
+                        <span className="font-mono">{fmt(cashFlow.totalOperating)}</span>
+                      </div>
+                    </div>
+
+                    {/* Investing Activities */}
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>2. Investing Activities</h2>
+                        <span className="amount-header font-mono">{fmt(cashFlow.totalInvesting)}</span>
+                      </div>
+                      <div className="section-block">
+                        <h3>CapEx & Asset Movements</h3>
+                        {cashFlow.investingActivities.length === 0 ? (
+                          <div className="empty-subtext">No investing transactions</div>
+                        ) : (
+                          cashFlow.investingActivities.map((a: any, i: number) => (
+                            <div key={i} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Net Investing</span>
+                        <span className="font-mono">{fmt(cashFlow.totalInvesting)}</span>
+                      </div>
+                    </div>
+
+                    {/* Financing Activities */}
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>3. Financing Activities</h2>
+                        <span className="amount-header font-mono">{fmt(cashFlow.totalFinancing)}</span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Capital, Loans & Borrowings</h3>
+                        {cashFlow.financingActivities.length === 0 ? (
+                          <div className="empty-subtext">No financing transactions</div>
+                        ) : (
+                          cashFlow.financingActivities.map((a: any, i: number) => (
+                            <div key={i} className="report-line">
+                              <span>{a.accountName}</span>
+                              <span className="font-mono">{fmt(a.amount)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Net Financing</span>
+                        <span className="font-mono">{fmt(cashFlow.totalFinancing)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TRIAL BALANCE CARDS */}
+              {activeTab === 'TRIAL_BALANCE' && trialBalance && (
+                <div className="report-sheet">
+                  {/* Status Banner */}
+                  <div className="report-status-banner glass-card mb-lg">
+                    <div className="flex items-center justify-between" style={{ width: '100%' }}>
+                      <div>
+                        <div className="text-sm text-muted">Trial Balance Equation</div>
+                        <div
+                          className="text-lg font-semibold"
+                          style={{
+                            color:
+                              Math.abs(parseFloat(trialBalance.totalDebit) - parseFloat(trialBalance.totalCredit)) < 0.01
+                                ? 'var(--color-credit)'
+                                : 'var(--color-danger)',
+                          }}
+                        >
+                          {Math.abs(parseFloat(trialBalance.totalDebit) - parseFloat(trialBalance.totalCredit)) < 0.01
+                            ? '✓ Total Debits (Dr) = Total Credits (Cr) Mathematical Parity'
+                            : '⚠ Ledger Imbalance Detected'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted">Parity Turnover</div>
+                        <div className="font-mono text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                          {fmt(trialBalance.totalDebit)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary KPI Cards */}
+                  <div className="pnl-summary-grid mb-lg">
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Total Debit Balance (Dr)</div>
+                      <div className="dashboard-card-value font-mono" style={{ color: '#38bdf8' }}>
+                        {fmt(trialBalance.totalDebit)}
+                      </div>
+                      <div className="dashboard-card-count">
+                        {trialBalance.rows.filter((r: any) => parseFloat(r.debitBalance) > 0).length} Debit Accounts
+                      </div>
+                    </div>
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Total Credit Balance (Cr)</div>
+                      <div className="dashboard-card-value font-mono" style={{ color: 'var(--color-credit)' }}>
+                        {fmt(trialBalance.totalCredit)}
+                      </div>
+                      <div className="dashboard-card-count">
+                        {trialBalance.rows.filter((r: any) => parseFloat(r.creditBalance) > 0).length} Credit Accounts
+                      </div>
+                    </div>
+                    <div className="dashboard-card glass-card">
+                      <div className="dashboard-card-label">Parity Difference</div>
+                      <div
+                        className="dashboard-card-value font-mono"
+                        style={{
+                          color:
+                            Math.abs(parseFloat(trialBalance.totalDebit) - parseFloat(trialBalance.totalCredit)) < 0.01
+                              ? 'var(--color-credit)'
+                              : 'var(--color-danger)',
+                        }}
+                      >
+                        {fmt(Math.abs(parseFloat(trialBalance.totalDebit) - parseFloat(trialBalance.totalCredit)))}
+                      </div>
+                      <div className="dashboard-card-count">
+                        {Math.abs(parseFloat(trialBalance.totalDebit) - parseFloat(trialBalance.totalCredit)) < 0.01
+                          ? 'Zero Variance Verified'
+                          : 'Audit Required'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Column T-Account Ledger Cards */}
+                  <div className="balance-sheet-grid">
+                    {/* Debit Accounts Card */}
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>Debit Balances (Dr)</h2>
+                        <span className="amount-header font-mono" style={{ color: '#38bdf8' }}>
+                          {fmt(trialBalance.totalDebit)}
+                        </span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Assets, Expenses & Receivables</h3>
+                        {trialBalance.rows.filter((r: any) => parseFloat(r.debitBalance) > 0).length === 0 ? (
+                          <div className="empty-subtext">No debit balances</div>
+                        ) : (
+                          trialBalance.rows
+                            .filter((r: any) => parseFloat(r.debitBalance) > 0)
+                            .map((r: any) => (
+                              <div key={r.accountId} className="report-line">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span>{r.accountName}</span>
+                                  <span
+                                    className={`badge badge-${r.type.toLowerCase()}`}
+                                    style={{ fontSize: '0.68rem', padding: '1px 6px' }}
+                                  >
+                                    {r.type}
+                                  </span>
+                                </div>
+                                <span className="font-mono">{fmt(r.debitBalance)}</span>
+                              </div>
+                            ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Total Debit (Dr)</span>
+                        <span className="font-mono" style={{ color: '#38bdf8' }}>
+                          {fmt(trialBalance.totalDebit)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Credit Accounts Card */}
+                    <div className="report-column glass-card">
+                      <div className="column-header">
+                        <h2>Credit Balances (Cr)</h2>
+                        <span className="amount-header font-mono" style={{ color: 'var(--color-credit)' }}>
+                          {fmt(trialBalance.totalCredit)}
+                        </span>
+                      </div>
+                      <div className="section-block">
+                        <h3>Liabilities, Equity & Revenues</h3>
+                        {trialBalance.rows.filter((r: any) => parseFloat(r.creditBalance) > 0).length === 0 ? (
+                          <div className="empty-subtext">No credit balances</div>
+                        ) : (
+                          trialBalance.rows
+                            .filter((r: any) => parseFloat(r.creditBalance) > 0)
+                            .map((r: any) => (
+                              <div key={r.accountId} className="report-line">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span>{r.accountName}</span>
+                                  <span
+                                    className={`badge badge-${r.type.toLowerCase()}`}
+                                    style={{ fontSize: '0.68rem', padding: '1px 6px' }}
+                                  >
+                                    {r.type}
+                                  </span>
+                                </div>
+                                <span className="font-mono">{fmt(r.creditBalance)}</span>
+                              </div>
+                            ))
+                        )}
+                      </div>
+                      <div className="column-footer">
+                        <span>Total Credit (Cr)</span>
+                        <span className="font-mono" style={{ color: 'var(--color-credit)' }}>
+                          {fmt(trialBalance.totalCredit)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
