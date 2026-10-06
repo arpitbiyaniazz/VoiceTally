@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
+import { ThemeToggle } from '../common/ThemeToggle';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
@@ -54,6 +55,9 @@ export function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
+        <div className="sidebar-theme-toggle-wrap">
+          <ThemeToggle variant="row" />
+        </div>
         <div className="sidebar-user">
           <div className="sidebar-user-avatar">
             {user?.name?.charAt(0)?.toUpperCase() || '?'}

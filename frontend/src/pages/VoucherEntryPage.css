@@ -22,32 +22,32 @@
 
 .voucher-type-card.active {
   border-color: var(--color-accent);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(15, 23, 42, 0.9));
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), var(--color-bg-secondary));
   box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18);
   transform: translateY(-2px);
 }
 
 .voucher-type-card.active.payment {
-  border-color: #f43f5e;
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(15, 23, 42, 0.9));
+  border-color: var(--color-debit);
+  background: linear-gradient(135deg, var(--color-debit-bg), var(--color-bg-secondary));
   box-shadow: 0 8px 24px rgba(244, 63, 94, 0.18);
 }
 
 .voucher-type-card.active.receipt {
-  border-color: #10b981;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(15, 23, 42, 0.9));
+  border-color: var(--color-credit);
+  background: linear-gradient(135deg, var(--color-credit-bg), var(--color-bg-secondary));
   box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18);
 }
 
 .voucher-type-card.active.contra {
-  border-color: #38bdf8;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.9));
+  border-color: var(--color-info);
+  background: linear-gradient(135deg, var(--color-info-bg), var(--color-bg-secondary));
   box-shadow: 0 8px 24px rgba(56, 189, 248, 0.18);
 }
 
 .voucher-type-card.active.journal {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(15, 23, 42, 0.9));
+  border-color: var(--color-warning);
+  background: linear-gradient(135deg, var(--color-warning-bg), var(--color-bg-secondary));
   box-shadow: 0 8px 24px rgba(245, 158, 11, 0.18);
 }
 
@@ -65,7 +65,7 @@
 .voucher-card-title {
   font-size: var(--text-base);
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .voucher-card-desc {
@@ -137,15 +137,15 @@
 
 .amount-chip:hover {
   background: var(--color-bg-hover);
-  color: #ffffff;
+  color: var(--color-text-primary);
   border-color: var(--color-accent);
 }
 
 /* Live Preview Card */
 .voucher-preview-card {
   padding: var(--space-lg);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
   border-radius: var(--radius-lg);
 }
 
@@ -161,7 +161,7 @@
 .preview-title {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: #c7d2fe;
+  color: var(--color-text-primary);
 }
 
 /* Journal Entry Section */

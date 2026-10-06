@@ -17,9 +17,10 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-lg);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.7));
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
@@ -53,9 +54,8 @@
   font-family: var(--font-mono);
   font-size: var(--text-4xl);
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   letter-spacing: -0.03em;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
 .hero-stat-meta {
@@ -94,7 +94,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(147, 51, 234, 0.2));
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(147, 51, 234, 0.12));
   border: 1px solid rgba(129, 140, 248, 0.35);
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-lg);
@@ -104,10 +104,10 @@
 }
 
 .hero-voice-shortcut:hover {
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.35), rgba(147, 51, 234, 0.35));
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.22), rgba(147, 51, 234, 0.22));
   border-color: rgba(168, 85, 247, 0.6);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(129, 140, 248, 0.25);
+  box-shadow: 0 8px 24px rgba(129, 140, 248, 0.2);
 }
 
 .hero-voice-orb {
@@ -131,24 +131,24 @@
 .hero-voice-title {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .hero-voice-prompt {
   font-size: 0.78rem;
-  color: #cbd5e1;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .hero-voice-arrow {
-  color: #a5b4fc;
+  color: var(--color-indigo);
   font-size: 1.2rem;
   transition: transform var(--transition-fast);
 }
 
 .hero-voice-shortcut:hover .hero-voice-arrow {
   transform: translateX(4px);
-  color: #ffffff;
+  color: var(--color-accent);
 }
 
 /* Quick Action Tiles */
@@ -320,8 +320,8 @@
 
 .filter-pill.active {
   background: var(--color-bg-elevated);
-  color: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-xs);
 }
 
 @media (max-width: 768px) {

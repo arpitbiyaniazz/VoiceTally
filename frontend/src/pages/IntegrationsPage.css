@@ -48,10 +48,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  background: rgba(15, 23, 42, 0.8);
+  background: var(--color-bg-secondary);
   padding: 8px 16px;
   border-radius: var(--radius-lg);
-  border: 1px dashed rgba(99, 102, 241, 0.5);
+  border: 1px dashed var(--color-indigo);
 }
 
 .pairing-code-text {
@@ -59,13 +59,13 @@
   font-size: 1.625rem;
   font-weight: 900;
   letter-spacing: 0.15em;
-  color: #38bdf8;
-  text-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+  color: var(--color-info);
+  text-shadow: 0 0 12px var(--color-accent-glow);
 }
 
 .btn-icon-copy {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   padding: 6px 12px;
   border-radius: var(--radius-md);
@@ -79,8 +79,8 @@
 }
 
 .btn-icon-copy:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
 }
 
 /* ─── 2-Column Main Layout ─────────────────────────────────────────── */
@@ -116,12 +116,12 @@
 
 .integration-card.whatsapp {
   border-color: rgba(37, 211, 102, 0.25);
-  background: linear-gradient(180deg, rgba(37, 211, 102, 0.04) 0%, rgba(15, 23, 42, 0.6) 100%);
+  background: linear-gradient(180deg, rgba(37, 211, 102, 0.05) 0%, var(--color-bg-secondary) 100%);
 }
 
 .integration-card.telegram {
   border-color: rgba(0, 136, 204, 0.25);
-  background: linear-gradient(180deg, rgba(0, 136, 204, 0.04) 0%, rgba(15, 23, 42, 0.6) 100%);
+  background: linear-gradient(180deg, rgba(0, 136, 204, 0.05) 0%, var(--color-bg-secondary) 100%);
 }
 
 .channel-card-header {
@@ -222,8 +222,8 @@
 }
 
 .channel-help-box {
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   display: flex;
@@ -257,11 +257,11 @@
 .cmd-pill {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  color: #38bdf8;
+  color: var(--color-info);
 }
 
 .channel-actions-row {
@@ -717,8 +717,8 @@
 .webhooks-drawer {
   padding: var(--space-lg) var(--space-xl);
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
   animation: fadeInMsg 0.2s ease-out;
 }
 
@@ -758,10 +758,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-bg-tertiary);
   padding: 8px 14px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
 
@@ -775,8 +775,9 @@
 .webhook-code {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8125rem;
-  color: #38bdf8;
-  background: rgba(15, 23, 42, 0.7);
+  color: var(--color-info);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: 4px 8px;
   border-radius: 4px;
   flex: 1;

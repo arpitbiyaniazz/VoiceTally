@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { VoiceAgentModal } from '../voice/VoiceAgentModal';
 import { VoiceFloatingButton } from '../voice/VoiceFloatingButton';
+import { ThemeToggle } from '../common/ThemeToggle';
 import { useAuth } from '../../context/useAuth';
 import './AppLayout.css';
 
@@ -25,6 +26,7 @@ export function AppLayout() {
           <span className="mobile-brand-title">VoiceTally</span>
         </div>
         <div className="mobile-topbar-actions">
+          <ThemeToggle variant="icon" />
           <button 
             className="mobile-voice-trigger" 
             onClick={() => setIsVoiceModalOpen(true)}

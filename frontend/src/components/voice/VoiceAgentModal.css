@@ -47,7 +47,7 @@
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--color-bg-secondary);
 }
 
 .voice-title-wrap {
@@ -71,7 +71,7 @@
 .voice-title {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -154,7 +154,7 @@
 .voice-welcome-title {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin-bottom: 6px;
 }
 
@@ -235,8 +235,8 @@
 .voice-card {
   margin-top: var(--space-sm);
   padding: var(--space-md);
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -245,7 +245,7 @@
 
 .voice-card.preview {
   border-color: rgba(245, 158, 11, 0.5);
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.08), rgba(15, 23, 42, 0.9));
+  background: var(--color-bg-secondary);
 }
 
 .voice-card-header {
@@ -299,7 +299,7 @@
   font-family: var(--font-mono);
   font-size: 1.15rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .voice-card-split {
@@ -310,7 +310,8 @@
 }
 
 .voice-card-split-item {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
 }
@@ -324,7 +325,7 @@
 .voice-card-split-item .val {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 /* Two-Step Confirmation Actions */
@@ -333,7 +334,7 @@
   gap: var(--space-sm);
   margin-top: var(--space-sm);
   padding-top: var(--space-xs);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--color-border);
 }
 
 .voice-confirm-btn {
@@ -405,7 +406,7 @@
 .voice-footer {
   padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--color-border);
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--color-bg-secondary);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -471,7 +472,7 @@
   flex: 1;
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--color-text-primary);
   padding: 8px 12px;
   font-size: 0.9rem;
   outline: none;
@@ -519,8 +520,8 @@
 }
 
 .voice-popup-dialog {
-  background: #0f172a;
-  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 520px;
@@ -547,8 +548,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
 }
 
 .voice-popup-badge-wrap {
@@ -578,7 +579,7 @@
 .voice-popup-title {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -634,8 +635,8 @@
 }
 
 .voice-popup-summary-card {
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   display: flex;
@@ -647,7 +648,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-xs);
 }
 
@@ -662,7 +663,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: var(--space-sm);
   border-radius: var(--radius-md);
 }
@@ -692,7 +694,7 @@
 .ledger-account-name {
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .voice-popup-arrow {
@@ -706,7 +708,8 @@
   gap: 8px;
   font-size: 0.82rem;
   color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
 }
@@ -733,8 +736,8 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.95);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
 }
 
 .voice-popup-btn {

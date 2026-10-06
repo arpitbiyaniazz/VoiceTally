@@ -37,7 +37,7 @@
 .report-tab-btn.active {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(6, 182, 212, 0.12));
   border-color: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-accent);
   box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15);
 }
 
@@ -87,7 +87,7 @@
 
 .preset-btn:hover {
   background: var(--color-bg-hover);
-  color: #ffffff;
+  color: var(--color-text-primary);
   border-color: var(--color-accent);
 }
 
@@ -96,8 +96,8 @@
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-lg);
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: var(--color-credit-bg);
+  border: 1px solid var(--color-credit-border);
   border-left: 5px solid var(--color-accent);
   display: flex;
   align-items: center;
@@ -109,7 +109,7 @@
 .equation-text {
   font-size: var(--text-base);
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-family: var(--font-mono);
 }
 
@@ -169,7 +169,7 @@
   padding: 8px 0;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+  border-bottom: 1px dashed var(--color-border);
 }
 
 .report-line:last-child {
@@ -223,7 +223,7 @@
 }
 
 .subtotal-table-row td {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-bg-tertiary);
   font-weight: 700;
   border-top: 1px solid var(--color-border-strong);
   color: var(--color-text-primary);

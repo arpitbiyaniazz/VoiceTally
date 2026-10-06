@@ -8,7 +8,8 @@
 
 /* ─── CSS Custom Properties (Design Tokens) ─────────────────────────────── */
 
-:root {
+:root,
+[data-theme="dark"] {
   /* Color Palette - Obsidian / Slate */
   --color-bg-primary: #080c14;
   --color-bg-secondary: #0f172a;
@@ -114,6 +115,72 @@
   --sidebar-collapsed: 76px;
   --topbar-height: 68px;
   --bottom-nav-height: 68px;
+}
+
+[data-theme="light"] {
+  /* Color Palette - Crisp Studio Snow / Slate */
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-elevated: #ffffff;
+  --color-bg-card: rgba(255, 255, 255, 0.94);
+  --color-bg-hover: #e2e8f0;
+  --color-bg-active: #cbd5e1;
+
+  /* Glassmorphism */
+  --color-glass-bg: rgba(255, 255, 255, 0.90);
+  --color-glass-border: rgba(15, 23, 42, 0.08);
+  --color-glass-border-hover: rgba(15, 23, 42, 0.16);
+  --color-glass-hover: rgba(248, 250, 252, 0.95);
+
+  /* High-Contrast Accessible Text */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-text-disabled: #94a3b8;
+
+  /* Accent Brand - Emerald & Cyan */
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --color-accent-muted: rgba(5, 150, 105, 0.12);
+  --color-accent-glow: rgba(5, 150, 105, 0.25);
+  --color-cyan: #0284c7;
+  --color-indigo: #4f46e5;
+  --color-purple: #7c3aed;
+
+  /* Semantic Financial Colors (WCAG AAA High Contrast) */
+  --color-credit: #059669;
+  --color-credit-bg: rgba(5, 150, 105, 0.1);
+  --color-credit-border: rgba(5, 150, 105, 0.25);
+
+  --color-debit: #e11d48;
+  --color-debit-bg: rgba(225, 29, 72, 0.08);
+  --color-debit-border: rgba(225, 29, 72, 0.22);
+
+  --color-danger: #dc2626;
+  --color-danger-bg: rgba(220, 38, 38, 0.08);
+  --color-danger-border: rgba(220, 38, 38, 0.22);
+
+  --color-warning: #d97706;
+  --color-warning-bg: rgba(217, 119, 6, 0.1);
+  --color-warning-border: rgba(217, 119, 6, 0.25);
+
+  --color-info: #0284c7;
+  --color-info-bg: rgba(2, 132, 199, 0.08);
+  --color-info-border: rgba(2, 132, 199, 0.22);
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-border-focus: #059669;
+
+  /* Layered Soft Shadows for Light Mode */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 0 24px rgba(5, 150, 105, 0.2);
+  --shadow-voice-glow: 0 0 32px rgba(79, 70, 229, 0.2);
 }
 
 /* ─── Reset & Baseline ──────────────────────────────────────────────────── */
@@ -329,15 +396,15 @@ a:hover {
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.18));
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(168, 85, 247, 0.16));
   border: 1px solid rgba(99, 102, 241, 0.35);
-  color: #c7d2fe;
+  color: var(--color-indigo);
 }
 
 .btn-secondary:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.3));
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(168, 85, 247, 0.28));
   border-color: rgba(99, 102, 241, 0.5);
-  color: #ffffff;
+  color: var(--color-indigo);
 }
 
 .btn-danger {
@@ -444,11 +511,11 @@ a:hover {
 }
 
 .data-table .amount.debit {
-  color: #fb7185;
+  color: var(--color-debit);
 }
 
 .data-table .amount.credit {
-  color: #34d399;
+  color: var(--color-credit);
 }
 
 .data-table .amount.balance {
@@ -472,56 +539,62 @@ a:hover {
 
 .badge-payment {
   background: var(--color-debit-bg);
-  color: #fb7185;
+  color: var(--color-debit);
   border: 1px solid var(--color-debit-border);
 }
 
 .badge-receipt {
   background: var(--color-credit-bg);
-  color: #34d399;
+  color: var(--color-credit);
   border: 1px solid var(--color-credit-border);
 }
 
 .badge-contra {
   background: var(--color-info-bg);
-  color: #38bdf8;
+  color: var(--color-info);
   border: 1px solid var(--color-info-border);
 }
 
 .badge-journal {
   background: var(--color-warning-bg);
-  color: #fbbf24;
+  color: var(--color-warning);
   border: 1px solid var(--color-warning-border);
 }
 
 .badge-asset {
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border: 1px solid var(--color-info-border);
 }
 
 .badge-liability {
-  background: rgba(244, 63, 94, 0.12);
-  color: #fb7185;
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  background: var(--color-debit-bg);
+  color: var(--color-debit);
+  border: 1px solid var(--color-debit-border);
 }
 
 .badge-equity {
   background: rgba(168, 85, 247, 0.12);
-  color: #c084fc;
+  color: var(--color-purple);
   border: 1px solid rgba(168, 85, 247, 0.25);
 }
 
 .badge-income {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: var(--color-credit-bg);
+  color: var(--color-credit);
+  border: 1px solid var(--color-credit-border);
 }
 
 .badge-expense {
   background: rgba(249, 115, 22, 0.12);
-  color: #fb923c;
+  color: #ea580c;
   border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.badge-neutral {
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 /* ─── Modal Dialogs ──────────────────────────────────────────────────────── */
@@ -529,7 +602,7 @@ a:hover {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 7, 13, 0.78);
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
@@ -576,7 +649,7 @@ a:hover {
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--color-border);
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--color-bg-tertiary);
 }
 
 /* ─── Page Layout & Headers ──────────────────────────────────────────────── */
@@ -602,7 +675,7 @@ a:hover {
   font-size: var(--text-3xl);
   font-weight: 900;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-text-secondary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
