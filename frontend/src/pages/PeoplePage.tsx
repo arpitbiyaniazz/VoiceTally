@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { ledgerApi } from '../api/ledger';
+import './PeoplePage.css';
 
 interface PersonData {
   id: string;
@@ -157,26 +158,49 @@ export function PeoplePage() {
         </div>
       </div>
 
-      {filteredPeople.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">👥</div>
-          <div className="empty-state-title">No contacts match your query</div>
-          <p className="text-muted">Add contacts or try adjusting your filter.</p>
-        </div>
-      ) : (
-        <div className="data-table-wrapper">
-          <table className="data-table">
-            <thead>
+      <div className="data-table-wrapper">
+        <table className="data-table people-table">
+          <colgroup>
+            <col className="people-col-name" />
+            <col className="people-col-label" />
+            <col className="people-col-phone" />
+            <col className="people-col-balance" />
+            <col className="people-col-status" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="people-col-name">Person Name</th>
+              <th className="people-col-label">Relationship / Tag</th>
+              <th className="people-col-phone">Contact Phone</th>
+              <th className="people-col-balance">Outstanding Balance</th>
+              <th className="people-col-status">Status / Relationship</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPeople.length === 0 ? (
               <tr>
-                <th>Person Name</th>
-                <th>Relationship / Tag</th>
-                <th>Contact Phone</th>
-                <th style={{ textAlign: 'right' }}>Outstanding Balance</th>
-                <th>Status / Relationship</th>
+                <td colSpan={5} className="people-table-empty">
+                  <div className="empty-state" style={{ padding: '36px 16px', margin: 0, border: 'none', background: 'transparent' }}>
+                    <div className="empty-state-icon">👥</div>
+                    <div className="empty-state-title">
+                      {filterType === 'SETTLED'
+                        ? 'No settled contacts yet'
+                        : filterType === 'PAYABLE'
+                        ? 'No payable debts found'
+                        : filterType === 'RECEIVABLE'
+                        ? 'No receivables found'
+                        : 'No contacts match your query'}
+                    </div>
+                    <p className="text-muted">
+                      {filterType === 'SETTLED'
+                        ? 'Contacts with a zero balance will appear here once settled.'
+                        : 'Add contacts or try adjusting your filter.'}
+                    </p>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredPeople.map((p) => {
+            ) : (
+              filteredPeople.map((p) => {
                 const bal = parseFloat(p.balance);
                 const isReceivable = p.balanceDirection === 'receivable';
                 const isPayable = p.balanceDirection === 'payable';
@@ -184,7 +208,7 @@ export function PeoplePage() {
                 return (
                   <tr key={p.id}>
                     <td style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                         <div style={{
                           width: '32px',
                           height: '32px',
@@ -196,10 +220,13 @@ export function PeoplePage() {
                           justifyContent: 'center',
                           fontSize: '0.85rem',
                           fontWeight: 800,
+                          flexShrink: 0,
                         }}>
                           {p.name.charAt(0).toUpperCase()}
                         </div>
-                        {p.name}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.name}
+                        </span>
                       </div>
                     </td>
                     <td className="text-muted">{p.label || '—'}</td>
@@ -220,11 +247,11 @@ export function PeoplePage() {
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Add Person Modal */}
       {showModal && (
