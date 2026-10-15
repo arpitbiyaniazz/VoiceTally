@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Hourglass, RotateCcw, CheckCircle2, ShieldCheck, AlertTriangle, AlertOctagon } from 'lucide-react';
 
 interface RunwaySimulatorProps {
   totalLiquidCash: number;
@@ -58,13 +59,15 @@ export function RunwaySimulator({
     <div className="runway-simulator-card glass-card">
       <div className="simulator-header">
         <div>
-          <h3 className="chart-card-title">⏳ Predictive Cash Runway & Burn Simulator</h3>
+          <h3 className="chart-card-title" style={{ display: 'flex', alignItems: 'center' }}>
+            <Hourglass size={18} style={{ marginRight: 8 }} /> Predictive Cash Runway & Burn Simulator
+          </h3>
           <p className="chart-card-subtitle">
             Model forward-looking liquidity scenarios and stress-test your business runway
           </p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={handleReset} title="Reset to current actuals">
-          ↺ Reset Baseline
+          <RotateCcw size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Reset Baseline
         </button>
       </div>
 
@@ -148,10 +151,10 @@ export function RunwaySimulator({
         {/* Dynamic Runway Metric Display */}
         <div className={`runway-result-box ${healthZone.toLowerCase()}`}>
           <div className="runway-status-pill">
-            {healthZone === 'INFINITE' && '🟢 Cash Flow Positive (Self-Sustaining)'}
-            {healthZone === 'SAFE' && '🟢 Safe Runway (> 6 Months)'}
-            {healthZone === 'MODERATE' && '🟡 Moderate Runway (3–6 Months)'}
-            {healthZone === 'CRITICAL' && '🔴 Critical Runway (< 3 Months)'}
+            {healthZone === 'INFINITE' && <><CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Cash Flow Positive (Self-Sustaining)</>}
+            {healthZone === 'SAFE' && <><ShieldCheck size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Safe Runway (&gt; 6 Months)</>}
+            {healthZone === 'MODERATE' && <><AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Moderate Runway (3–6 Months)</>}
+            {healthZone === 'CRITICAL' && <><AlertOctagon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Critical Runway (&lt; 3 Months)</>}
           </div>
 
           <div className="runway-hero-metric">

@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { voiceApi, type VoiceProcessResponse } from '../../api/voice';
+import {
+  Mic,
+  Volume2,
+  VolumeX,
+  X,
+  Sparkles,
+  AlertTriangle,
+  FileText,
+  Zap,
+  Check,
+  CheckCircle2,
+  Landmark,
+  ArrowRight,
+  TrendingUp,
+  ShoppingBag,
+  Banknote,
+  Gem,
+} from 'lucide-react';
 import './VoiceAgentModal.css';
 
 interface Message {
@@ -148,12 +166,12 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
   };
 
   const suggestions = [
-    { label: '🏦 Bank balance', query: 'what is my bank balance' },
-    { label: '🏧 ATM cash withdrawal', query: 'i made the withdrawal from the bank 5000' },
-    { label: '🛍️ Customer credit purchase', query: 'Rahul bought goods for 12000' },
-    { label: '💵 Collect money from contact', query: 'i take 4000 muny from Rahul in cash' },
-    { label: '💎 Net worth query', query: 'what is my net worth' },
-    { label: '📈 Monthly expenses', query: 'how much did i spend this month' },
+    { icon: <Landmark size={14} />, label: 'Bank balance', query: 'what is my bank balance' },
+    { icon: <Banknote size={14} />, label: 'ATM cash withdrawal', query: 'i made the withdrawal from the bank 5000' },
+    { icon: <ShoppingBag size={14} />, label: 'Customer credit purchase', query: 'Rahul bought goods for 12000' },
+    { icon: <Banknote size={14} />, label: 'Collect money from contact', query: 'i take 4000 muny from Rahul in cash' },
+    { icon: <Gem size={14} />, label: 'Net worth query', query: 'what is my net worth' },
+    { icon: <TrendingUp size={14} />, label: 'Monthly expenses', query: 'how much did i spend this month' },
   ];
 
   if (!isOpen) return null;
@@ -169,7 +187,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
         {/* Header */}
         <div className="voice-header">
           <div className="voice-title-wrap">
-            <div className="voice-orb-icon">🎙️</div>
+            <div className="voice-orb-icon"><Mic size={22} /></div>
             <div>
               <h3 className="voice-title">VoiceTally AI Assistant</h3>
               <p className="voice-subtitle">Spoken Accounting & Natural Language Ledgers</p>
@@ -182,10 +200,10 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
               title={voiceEnabled ? 'Mute Spoken Audio' : 'Unmute Spoken Audio'}
               type="button"
             >
-              {voiceEnabled ? '🔊 Audio ON' : '🔇 Audio OFF'}
+              {voiceEnabled ? <><Volume2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Audio ON</> : <><VolumeX size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Audio OFF</>}
             </button>
             <button className="voice-btn-icon" onClick={onClose} title="Close Assistant" type="button">
-              ✕
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -194,7 +212,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
         <div className="voice-body" ref={bodyRef}>
           {messages.length === 0 && (
             <div className="voice-welcome-card">
-              <div className="voice-welcome-orb">✨</div>
+              <div className="voice-welcome-orb"><Sparkles size={28} /></div>
               <h4 className="voice-welcome-title">Speak or Type Your Financial Request</h4>
               <p className="voice-welcome-desc">
                 Record bank withdrawals, credit sales, expense payments, or ask any balance and net worth question.
@@ -208,7 +226,9 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                     className="voice-chip"
                     onClick={() => handleSendText(item.query)}
                     type="button"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
+                    {item.icon}
                     <span>{item.label}</span>
                   </button>
                 ))}
@@ -226,7 +246,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                   <div className="voice-card preview">
                     <div className="voice-card-header">
                       <span className="voice-card-badge preview">
-                        ⚠️ PREVIEW: {msg.response.data.voucherType || 'VOUCHER'}
+                        <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> PREVIEW: {msg.response.data.voucherType || 'VOUCHER'}
                       </span>
                       <span className="voice-card-amount">
                         {msg.response.data.formattedAmount || `₹${msg.response.data.amount}`}
@@ -246,13 +266,13 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
 
                     {msg.response.data.narration && (
                       <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                        📝 {msg.response.data.narration}
+                        <FileText size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {msg.response.data.narration}
                       </div>
                     )}
 
                     {msg.response.data.warning && (
                       <div style={{ fontSize: '0.78rem', color: '#f59e0b', marginTop: 4 }}>
-                        ⚡ {msg.response.data.warning}
+                        <Zap size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {msg.response.data.warning}
                       </div>
                     )}
 
@@ -264,7 +284,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                         onClick={handleConfirmPending}
                         disabled={isProcessing}
                       >
-                        ✓ Confirm & Post
+                        <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Confirm & Post
                       </button>
                       <button
                         type="button"
@@ -272,7 +292,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                         onClick={handleCancelPending}
                         disabled={isProcessing}
                       >
-                        ✕ Cancel
+                        <X size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Cancel
                       </button>
                     </div>
                   </div>
@@ -287,7 +307,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                           msg.response.data.voucherType?.toLowerCase() || 'journal'
                         }`}
                       >
-                        ✓ {msg.response.data.voucherType || 'VOUCHER'} RECORDED
+                        <CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {msg.response.data.voucherType || 'VOUCHER'} RECORDED
                       </span>
                       <span className="voice-card-amount">
                         {msg.response.data.formattedAmount || `₹${msg.response.data.amount}`}
@@ -458,7 +478,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
 
               <div className="voice-popup-body">
                 <div className="voice-popup-question-banner">
-                  <span className="voice-popup-question-icon">❓</span>
+                  <span className="voice-popup-question-icon" style={{ display: 'flex', alignItems: 'center' }}><AlertTriangle size={16} /></span>
                   <span>Do you want to proceed with this transaction?</span>
                 </div>
 
@@ -481,7 +501,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                       <span className="ledger-tag dr">Debit (Dr)</span>
                       <span className="ledger-account-name">{pendingPreview.data.debitAccount}</span>
                     </div>
-                    <div className="voice-popup-arrow">➔</div>
+                    <div className="voice-popup-arrow"><ArrowRight size={16} /></div>
                     <div className="voice-popup-ledger-box credit">
                       <span className="ledger-tag cr">Credit (Cr)</span>
                       <span className="ledger-account-name">{pendingPreview.data.creditAccount}</span>
@@ -490,21 +510,21 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
 
                   {pendingPreview.data.narration && (
                     <div className="voice-popup-narration-box">
-                      <span className="narration-icon">📝</span>
+                      <span className="narration-icon"><FileText size={14} /></span>
                       <span className="narration-text">{pendingPreview.data.narration}</span>
                     </div>
                   )}
 
                   {pendingPreview.data.warning && (
                     <div className="voice-popup-warning-box">
-                      <span>⚡</span>
+                      <span><Zap size={14} /></span>
                       <span>{pendingPreview.data.warning}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="voice-popup-voice-hint">
-                  🎙️ Speak <strong>"Yes"</strong> / <strong>"Confirm"</strong>, or <strong>"Cancel"</strong> / <strong>"No"</strong>
+                <div className="voice-popup-voice-hint" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Mic size={14} /> Speak <strong>"Yes"</strong> / <strong>"Confirm"</strong>, or <strong>"Cancel"</strong> / <strong>"No"</strong>
                 </div>
               </div>
 
@@ -515,7 +535,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                   onClick={handleConfirmPending}
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Posting...' : '✓ Yes, Confirm & Post'}
+                  {isProcessing ? 'Posting...' : <><Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Yes, Confirm & Post</>}
                 </button>
                 <button
                   type="button"
@@ -523,7 +543,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                   onClick={handleCancelPending}
                   disabled={isProcessing}
                 >
-                  ✕ No, Cancel
+                  <X size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> No, Cancel
                 </button>
               </div>
             </div>

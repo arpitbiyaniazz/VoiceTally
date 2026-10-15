@@ -22,8 +22,8 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
 
     expect(screen.getByText('VoiceTally AI Assistant')).toBeInTheDocument();
     expect(screen.getByText('Speak or Type Your Financial Request')).toBeInTheDocument();
-    expect(screen.getByText('🏦 Bank balance')).toBeInTheDocument();
-    expect(screen.getByText('🏧 ATM cash withdrawal')).toBeInTheDocument();
+    expect(screen.getByText(/Bank balance/i)).toBeInTheDocument();
+    expect(screen.getByText(/ATM cash withdrawal/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Say or type/i)).toBeInTheDocument();
   });
 
@@ -72,7 +72,7 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Ready to record 5,000 rupees/i)).toBeInTheDocument();
-      expect(screen.getByText(/⚠️ PREVIEW: CONTRA/i)).toBeInTheDocument();
+      expect(screen.getByText(/PREVIEW: CONTRA/i)).toBeInTheDocument();
       // Popup confirmation dialog is rendered
       expect(screen.getByText('Confirm Transaction')).toBeInTheDocument();
       expect(screen.getByText('Do you want to proceed with this transaction?')).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Confirmed! Successfully recorded/i)).toBeInTheDocument();
-      expect(screen.getByText(/✓ CONTRA RECORDED/i)).toBeInTheDocument();
+      expect(screen.getByText(/CONTRA RECORDED/i)).toBeInTheDocument();
       expect(onExecutedMock).toHaveBeenCalled();
     });
   });

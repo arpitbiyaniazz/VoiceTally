@@ -1,18 +1,30 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
 import { ThemeToggle } from '../common/ThemeToggle';
+import {
+  LayoutDashboard,
+  BarChart3,
+  Mic,
+  MessageSquare,
+  FileText,
+  BookOpen,
+  List,
+  Users,
+  TrendingUp,
+  LogOut,
+} from 'lucide-react';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: '📊', description: 'Financial Overview' },
-  { path: '/analytics', label: 'Analytics', icon: '🌊', description: 'Sankey & Visual BI', badge: 'BI' },
-  { path: '/voice', label: 'Voice Studio', icon: '🎙️', description: 'AI Voice Ledger', badge: 'AI' },
-  { path: '/integrations', label: 'Bot Integrations', icon: '💬', description: 'WhatsApp & Telegram', badge: 'BOT' },
-  { path: '/vouchers', label: 'Voucher Entry', icon: '📝', description: 'Payment & Receipts' },
-  { path: '/journal', label: 'Journal Book', icon: '📒', description: 'Double-Entry Log' },
-  { path: '/accounts', label: 'Chart of Accounts', icon: '📋', description: 'Categories & Balances' },
-  { path: '/people', label: 'People', icon: '👥', description: 'Counterparties & Debts' },
-  { path: '/reports', label: 'Reports', icon: '📈', description: 'Financial Statements' },
+  { path: '/', label: 'Dashboard', icon: <LayoutDashboard size={20} />, description: 'Financial Overview' },
+  { path: '/analytics', label: 'Analytics', icon: <BarChart3 size={20} />, description: 'Sankey & Visual BI', badge: 'BI' },
+  { path: '/voice', label: 'Voice Studio', icon: <Mic size={20} />, description: 'AI Voice Ledger', badge: 'AI' },
+  { path: '/integrations', label: 'Bot Integrations', icon: <MessageSquare size={20} />, description: 'WhatsApp & Telegram', badge: 'BOT' },
+  { path: '/vouchers', label: 'Voucher Entry', icon: <FileText size={20} />, description: 'Payment & Receipts' },
+  { path: '/journal', label: 'Journal Book', icon: <BookOpen size={20} />, description: 'Double-Entry Log' },
+  { path: '/accounts', label: 'Chart of Accounts', icon: <List size={20} />, description: 'Categories & Balances' },
+  { path: '/people', label: 'People', icon: <Users size={20} />, description: 'Counterparties & Debts' },
+  { path: '/reports', label: 'Reports', icon: <TrendingUp size={20} />, description: 'Financial Statements' },
 ];
 
 export function Sidebar() {
@@ -73,7 +85,7 @@ export function Sidebar() {
           onClick={logout}
           title="Sign out of VoiceTally"
         >
-          <span>🚪</span> Sign Out
+          <LogOut size={16} /> Sign Out
         </button>
       </div>
     </aside>

@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { ledgerApi } from '../api/ledger';
+import { Users, X, AlertTriangle, ArrowRight } from 'lucide-react';
 import './PeoplePage.css';
 
 interface PersonData {
@@ -134,7 +135,7 @@ export function PeoplePage() {
           <input
             type="text"
             className="input search-input"
-            placeholder="🔍 Search name, label, phone..."
+            placeholder="Search name, label, phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ maxWidth: 260, minHeight: 40 }}
@@ -181,7 +182,9 @@ export function PeoplePage() {
               <tr>
                 <td colSpan={5} className="people-table-empty">
                   <div className="empty-state" style={{ padding: '36px 16px', margin: 0, border: 'none', background: 'transparent' }}>
-                    <div className="empty-state-icon">👥</div>
+                    <div className="empty-state-icon">
+                      <Users size={48} />
+                    </div>
                     <div className="empty-state-title">
                       {filterType === 'SETTLED'
                         ? 'No settled contacts yet'
@@ -259,11 +262,11 @@ export function PeoplePage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add Contact / Person</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="modal-body">
-                {error && <div className="toast-error mb-md">⚠️ {error}</div>}
+                {error && <div className="toast-error mb-md" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} /> {error}</div>}
                 <div className="form-group">
                   <label className="label">Full Name</label>
                   <input
@@ -300,7 +303,7 @@ export function PeoplePage() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : 'Save Contact ➔'}
+                  {isSubmitting ? 'Saving...' : <>Save Contact <ArrowRight size={16} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 4 }} /></>}
                 </button>
               </div>
             </form>

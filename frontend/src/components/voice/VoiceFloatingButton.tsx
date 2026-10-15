@@ -1,4 +1,5 @@
 import React from 'react';
+import { Mic } from 'lucide-react';
 import './VoiceAgentModal.css';
 
 interface VoiceFloatingButtonProps {
@@ -14,7 +15,9 @@ export const VoiceFloatingButton: React.FC<VoiceFloatingButtonProps> = ({ onClic
       title="Voice AI Assistant — Spoken Accounting"
       type="button"
     >
-      <div className="voice-fab-orb">🎙️</div>
+      <div className="voice-fab-orb">
+        <Mic size={20} />
+      </div>
       <span>Voice Agent</span>
     </button>
   );

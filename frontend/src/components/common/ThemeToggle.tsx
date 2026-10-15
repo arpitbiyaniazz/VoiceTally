@@ -1,4 +1,5 @@
 import { useTheme } from '../../context/useTheme';
+import { Sun, Moon } from 'lucide-react';
 import './ThemeToggle.css';
 
 interface ThemeToggleProps {
@@ -22,8 +23,8 @@ export function ThemeToggle({ variant = 'icon', className = '' }: ThemeTogglePro
         title={`Current: ${isLight ? 'Light' : 'Dark'} theme. Click to switch.`}
       >
         <div className="theme-toggle-row-left">
-          <span className="theme-toggle-row-icon" aria-hidden="true">
-            {isLight ? '☀️' : '🌙'}
+          <span className="theme-toggle-row-icon" aria-hidden="true" style={{ display: 'flex', alignItems: 'center' }}>
+            {isLight ? <Sun size={18} /> : <Moon size={18} />}
           </span>
           <div>
             <div className="theme-toggle-row-text">
@@ -54,8 +55,8 @@ export function ThemeToggle({ variant = 'icon', className = '' }: ThemeTogglePro
       onClick={toggleTheme}
       title={`Switch to ${isLight ? 'Dark' : 'Light'} theme`}
     >
-      <span className="theme-toggle-icon-wrap" aria-hidden="true">
-        {isLight ? '☀️' : '🌙'}
+      <span className="theme-toggle-icon-wrap" aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {isLight ? <Sun size={18} /> : <Moon size={18} />}
       </span>
     </button>
   );

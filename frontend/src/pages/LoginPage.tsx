@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { ThemeToggle } from '../components/common/ThemeToggle';
+import { Zap, AlertTriangle, ArrowRight } from 'lucide-react';
 import './AuthPages.css';
 
 export function LoginPage() {
@@ -68,8 +69,9 @@ export function LoginPage() {
               className="btn btn-secondary btn-sm w-full mt-xs demo-btn"
               onClick={handleDemoLogin}
               disabled={loading}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              ⚡ 1-Click Demo Login (demo@voicetally.app)
+              <Zap size={15} /> 1-Click Demo Login (demo@voicetally.app)
             </button>
           </div>
 
@@ -77,7 +79,7 @@ export function LoginPage() {
             <span>or sign in with email</span>
           </div>
 
-          {error && <div className="auth-error">⚠️ {error}</div>}
+          {error && <div className="auth-error" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} /> {error}</div>}
 
           <div className="form-group">
             <label className="label" htmlFor="login-email">Email Address</label>
@@ -106,7 +108,7 @@ export function LoginPage() {
           </div>
 
           <button type="submit" className="btn btn-primary btn-lg w-full mt-sm" disabled={loading}>
-            {loading ? <span className="spinner" /> : 'Sign In ➔'}
+            {loading ? <span className="spinner" /> : <>Sign In <ArrowRight size={16} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 4 }} /></>}
           </button>
 
           <p className="auth-switch">

@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { voiceApi, type VoiceProcessResponse } from '../api/voice';
+import {
+  Mic,
+  Square,
+  Volume2,
+  VolumeX,
+  Zap,
+  CreditCard,
+  BarChart3,
+  Search,
+  FileText,
+  Check,
+  X,
+  HelpCircle,
+  ArrowRight,
+} from 'lucide-react';
 import '../components/voice/VoiceAgentModal.css';
 import './VoiceStudioPage.css';
 
@@ -124,8 +139,8 @@ export const VoiceStudioPage: React.FC = () => {
       <header className="voice-studio-header">
         <div className="voice-studio-title-wrap">
           <div className="voice-studio-title-row">
-            <h1 className="voice-studio-title">
-              <span>🎙️</span> Voice Agent Studio
+            <h1 className="voice-studio-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Mic size={26} /> Voice Agent Studio
             </h1>
             <span className="voice-live-pill">
               <span className="voice-live-dot" />
@@ -144,7 +159,7 @@ export const VoiceStudioPage: React.FC = () => {
             title={voiceEnabled ? 'Mute Speech Synthesis' : 'Unmute Speech Synthesis'}
             type="button"
           >
-            <span>{voiceEnabled ? '🔊' : '🔇'}</span>
+            {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
             <span>{voiceEnabled ? 'Audio Speech Synthesis: ON' : 'Audio Speech Synthesis: OFF'}</span>
           </button>
         </div>
@@ -167,7 +182,7 @@ export const VoiceStudioPage: React.FC = () => {
                 title={isListening ? 'Stop Listening' : 'Start Voice Dictation'}
                 aria-label={isListening ? 'Stop Listening' : 'Start Voice Dictation'}
               >
-                {isListening ? '⏹' : '🎙️'}
+                {isListening ? <Square size={22} fill="currentColor" /> : <Mic size={26} />}
               </button>
             </div>
 
@@ -258,14 +273,16 @@ export const VoiceStudioPage: React.FC = () => {
           {/* Quick Voice Prompts */}
           <div className="voice-prompts-card">
             <div className="voice-prompts-header">
-              <h3 className="voice-prompts-title">
-                <span>⚡</span> Quick Voice Prompts
+              <h3 className="voice-prompts-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Zap size={16} /> Quick Voice Prompts
               </h3>
               <span className="voice-prompts-hint">Click any prompt to run</span>
             </div>
 
             <div className="voice-prompts-group">
-              <span className="voice-prompts-group-label">💳 Transactions & Vouchers</span>
+              <span className="voice-prompts-group-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CreditCard size={14} /> Transactions & Vouchers
+              </span>
               <div className="voice-prompts-chips-wrap">
                 {[
                   'Paid 500 for lunch from Cash',
@@ -279,14 +296,17 @@ export const VoiceStudioPage: React.FC = () => {
                     className="voice-prompt-pill"
                     onClick={() => handlePromptClick(sample)}
                   >
-                    ⚡ {sample}
+                    <Zap size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                    {sample}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="voice-prompts-group" style={{ marginTop: '4px' }}>
-              <span className="voice-prompts-group-label">📊 Balances & Financial Queries</span>
+              <span className="voice-prompts-group-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <BarChart3 size={14} /> Balances & Financial Queries
+              </span>
               <div className="voice-prompts-chips-wrap">
                 {[
                   'What is my bank balance?',
@@ -300,7 +320,8 @@ export const VoiceStudioPage: React.FC = () => {
                     className="voice-prompt-pill"
                     onClick={() => handlePromptClick(sample)}
                   >
-                    🔍 {sample}
+                    <Search size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                    {sample}
                   </button>
                 ))}
               </div>
@@ -402,8 +423,8 @@ export const VoiceStudioPage: React.FC = () => {
                       </div>
                     </div>
                     {item.response.data.narration && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
-                        📝 {item.response.data.narration}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <FileText size={13} /> {item.response.data.narration}
                       </div>
                     )}
                     <div className="voice-confirm-actions" style={{ marginTop: 8 }}>
@@ -413,7 +434,7 @@ export const VoiceStudioPage: React.FC = () => {
                         onClick={handleConfirmPending}
                         disabled={isProcessing}
                       >
-                        ✓ Confirm & Post
+                        <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Confirm & Post
                       </button>
                       <button
                         type="button"
@@ -421,7 +442,7 @@ export const VoiceStudioPage: React.FC = () => {
                         onClick={handleCancelPending}
                         disabled={isProcessing}
                       >
-                        ✕ Cancel
+                        <X size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Cancel
                       </button>
                     </div>
                   </div>
@@ -481,7 +502,7 @@ export const VoiceStudioPage: React.FC = () => {
           <div className="voice-popup-dialog">
             <div className="voice-popup-header">
               <div className="voice-popup-badge-wrap">
-                <span className="voice-popup-badge-icon">⚡</span>
+                <span className="voice-popup-badge-icon" style={{ display: 'flex', alignItems: 'center' }}><Zap size={16} /></span>
                 <div>
                   <h4 id="studio-popup-title" className="voice-popup-title">
                     Confirm Transaction
@@ -497,13 +518,13 @@ export const VoiceStudioPage: React.FC = () => {
                 title="Cancel Transaction"
                 aria-label="Cancel"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
             <div className="voice-popup-body">
               <div className="voice-popup-question-banner">
-                <span className="voice-popup-question-icon">❓</span>
+                <span className="voice-popup-question-icon" style={{ display: 'flex', alignItems: 'center' }}><HelpCircle size={16} /></span>
                 <span>Do you want to proceed with this transaction?</span>
               </div>
 
@@ -526,7 +547,7 @@ export const VoiceStudioPage: React.FC = () => {
                     <span className="ledger-tag dr">Debit (Dr)</span>
                     <span className="ledger-account-name">{pendingPreview.data.debitAccount}</span>
                   </div>
-                  <div className="voice-popup-arrow">➔</div>
+                  <div className="voice-popup-arrow"><ArrowRight size={16} /></div>
                   <div className="voice-popup-ledger-box credit">
                     <span className="ledger-tag cr">Credit (Cr)</span>
                     <span className="ledger-account-name">{pendingPreview.data.creditAccount}</span>
@@ -535,21 +556,21 @@ export const VoiceStudioPage: React.FC = () => {
 
                 {pendingPreview.data.narration && (
                   <div className="voice-popup-narration-box">
-                    <span className="narration-icon">📝</span>
+                    <span className="narration-icon"><FileText size={14} /></span>
                     <span className="narration-text">{pendingPreview.data.narration}</span>
                   </div>
                 )}
 
                 {pendingPreview.data.warning && (
                   <div className="voice-popup-warning-box">
-                    <span>⚡</span>
+                    <span><Zap size={14} /></span>
                     <span>{pendingPreview.data.warning}</span>
                   </div>
                 )}
               </div>
 
-              <div className="voice-popup-voice-hint">
-                🎙️ Speak <strong>"Yes"</strong> / <strong>"Confirm"</strong>, or <strong>"Cancel"</strong> / <strong>"No"</strong>
+              <div className="voice-popup-voice-hint" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Mic size={14} /> Speak <strong>"Yes"</strong> / <strong>"Confirm"</strong>, or <strong>"Cancel"</strong> / <strong>"No"</strong>
               </div>
             </div>
 

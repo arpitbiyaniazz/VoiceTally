@@ -5,6 +5,7 @@ import { VoiceAgentModal } from '../voice/VoiceAgentModal';
 import { VoiceFloatingButton } from '../voice/VoiceFloatingButton';
 import { ThemeToggle } from '../common/ThemeToggle';
 import { useAuth } from '../../context/useAuth';
+import { Mic, LayoutDashboard, FileText, BookOpen, TrendingUp } from 'lucide-react';
 import './AppLayout.css';
 
 export function AppLayout() {
@@ -32,7 +33,7 @@ export function AppLayout() {
             onClick={() => setIsVoiceModalOpen(true)}
             title="Ask Voice Assistant"
           >
-            🎙️
+            <Mic size={18} />
           </button>
           <div className="mobile-user-avatar" title={user?.name || 'User'}>
             {user?.name?.charAt(0)?.toUpperCase() || '?'}
@@ -48,12 +49,12 @@ export function AppLayout() {
       {/* Mobile Bottom Navigation Bar */}
       <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
         <NavLink to="/" className={({ isActive }) => `mobile-nav-item${isActive ? ' active' : ''}`} end>
-          <span className="mobile-nav-icon">📊</span>
+          <span className="mobile-nav-icon"><LayoutDashboard size={20} /></span>
           <span className="mobile-nav-label">Overview</span>
         </NavLink>
 
         <NavLink to="/vouchers" className={({ isActive }) => `mobile-nav-item${isActive ? ' active' : ''}`}>
-          <span className="mobile-nav-icon">📝</span>
+          <span className="mobile-nav-icon"><FileText size={20} /></span>
           <span className="mobile-nav-label">Voucher</span>
         </NavLink>
 
@@ -64,18 +65,18 @@ export function AppLayout() {
           aria-label="Open Voice Assistant"
         >
           <div className="mobile-nav-voice-orb">
-            🎙️
+            <Mic size={22} />
           </div>
           <span className="mobile-nav-voice-label">Voice</span>
         </button>
 
         <NavLink to="/journal" className={({ isActive }) => `mobile-nav-item${isActive ? ' active' : ''}`}>
-          <span className="mobile-nav-icon">📒</span>
+          <span className="mobile-nav-icon"><BookOpen size={20} /></span>
           <span className="mobile-nav-label">Journal</span>
         </NavLink>
 
         <NavLink to="/reports" className={({ isActive }) => `mobile-nav-item${isActive ? ' active' : ''}`}>
-          <span className="mobile-nav-icon">📈</span>
+          <span className="mobile-nav-icon"><TrendingUp size={20} /></span>
           <span className="mobile-nav-label">Reports</span>
         </NavLink>
       </nav>

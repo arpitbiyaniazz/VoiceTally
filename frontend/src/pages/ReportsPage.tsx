@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ledgerApi } from '../api/ledger';
 import { useAuth } from '../context/useAuth';
+import {
+  Table,
+  LayoutGrid,
+  Printer,
+  TrendingUp,
+  Scale,
+  Droplets,
+  FileSpreadsheet,
+} from 'lucide-react';
 import './ReportsPage.css';
 
 type ReportTab = 'PROFIT_LOSS' | 'BALANCE_SHEET' | 'CASH_FLOW' | 'TRIAL_BALANCE';
@@ -175,7 +184,8 @@ export function ReportsPage() {
               onClick={() => setViewMode('TABLE')}
               title="Table Format (Formal Corporate Statement)"
             >
-              📋 Table Format
+              <Table size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+              Table Format
             </button>
             <button
               type="button"
@@ -183,7 +193,8 @@ export function ReportsPage() {
               onClick={() => setViewMode('CARDS')}
               title="Visual BI Cards"
             >
-              📊 Visual BI Cards
+              <LayoutGrid size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+              Visual BI Cards
             </button>
           </div>
 
@@ -193,7 +204,8 @@ export function ReportsPage() {
             onClick={() => window.print()}
             title="Print or Export Financial Statement"
           >
-            🖨️ Print Statement
+            <Printer size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+            Print Statement
           </button>
         </div>
       </div>
@@ -204,25 +216,29 @@ export function ReportsPage() {
           className={`report-tab-btn ${activeTab === 'PROFIT_LOSS' ? 'active' : ''}`}
           onClick={() => setActiveTab('PROFIT_LOSS')}
         >
-          📈 Profit & Loss
+          <TrendingUp size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+          Profit & Loss
         </button>
         <button
           className={`report-tab-btn ${activeTab === 'BALANCE_SHEET' ? 'active' : ''}`}
           onClick={() => setActiveTab('BALANCE_SHEET')}
         >
-          ⚖️ Balance Sheet
+          <Scale size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+          Balance Sheet
         </button>
         <button
           className={`report-tab-btn ${activeTab === 'CASH_FLOW' ? 'active' : ''}`}
           onClick={() => setActiveTab('CASH_FLOW')}
         >
-          💧 Cash Flow
+          <Droplets size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+          Cash Flow
         </button>
         <button
           className={`report-tab-btn ${activeTab === 'TRIAL_BALANCE' ? 'active' : ''}`}
           onClick={() => setActiveTab('TRIAL_BALANCE')}
         >
-          📋 Trial Balance
+          <FileSpreadsheet size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+          Trial Balance
         </button>
       </div>
 

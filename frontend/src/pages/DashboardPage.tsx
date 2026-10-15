@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ledgerApi } from '../api/ledger';
 import { useAuth } from '../context/useAuth';
+import {
+  Hand,
+  Mic,
+  ArrowRight,
+  CreditCard,
+  Wallet,
+  Landmark,
+  Users,
+  BarChart3,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import './DashboardPage.css';
 
 interface AccountSummary {
@@ -76,12 +88,12 @@ export function DashboardPage() {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Welcome, {user?.name || 'Friend'} 👋</h1>
+          <h1 className="page-title">Welcome, {user?.name || 'Friend'} <Hand size={24} style={{ display: 'inline', verticalAlign: 'middle' }} /></h1>
           <p className="page-subtitle">Your double-entry financial pulse and voice ledger</p>
         </div>
         <div className="dashboard-header-actions">
           <button className="btn btn-secondary" onClick={() => navigate('/voice')}>
-            🎙️ Voice Studio
+            <Mic size={16} /> Voice Studio
           </button>
           <button className="btn btn-primary" onClick={() => navigate('/vouchers')}>
             + New Voucher
@@ -96,21 +108,21 @@ export function DashboardPage() {
           <div className="hero-stat-value">{formatAmount(netWorth)}</div>
           <div className="hero-stat-meta">
             <span className={`hero-status-pill ${netWorth >= 0 ? 'surplus' : 'deficit'}`}>
-              {netWorth >= 0 ? '✓ Positive Solvency' : '⚠️ Net Debt Position'}
+              {netWorth >= 0 ? <><CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> Positive Solvency</> : <><AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle' }} /> Net Debt Position</>}
             </span>
             <span className="hero-stat-hint">Assets ({formatAmount(totalAssets)}) − Liabilities ({formatAmount(Math.abs(totalLiabilities))})</span>
           </div>
         </div>
 
         <div className="hero-voice-shortcut" onClick={() => navigate('/voice')}>
-          <div className="hero-voice-orb">🎙️</div>
+          <div className="hero-voice-orb"><Mic size={28} /></div>
           <div className="hero-voice-info">
             <div className="hero-voice-title">VoiceTally AI Assistant</div>
             <div className="hero-voice-prompt">
               Try: <em>"Paid ₹500 for lunch"</em> or <em>"Rahul paid 10000"</em>
             </div>
           </div>
-          <div className="hero-voice-arrow">➔</div>
+          <div className="hero-voice-arrow"><ArrowRight size={20} /></div>
         </div>
       </div>
 
@@ -128,7 +140,7 @@ export function DashboardPage() {
             }
           }}
         >
-          <div className="quick-action-icon payment">💸</div>
+          <div className="quick-action-icon payment"><CreditCard size={24} /></div>
           <div className="quick-action-content">
             <div className="quick-action-title">Record Expense</div>
             <div className="quick-action-desc">Spendings, rent, groceries, salary</div>
@@ -147,7 +159,7 @@ export function DashboardPage() {
             }
           }}
         >
-          <div className="quick-action-icon receipt">💰</div>
+          <div className="quick-action-icon receipt"><Wallet size={24} /></div>
           <div className="quick-action-content">
             <div className="quick-action-title">Receive Money</div>
             <div className="quick-action-desc">Income, client payments, loans returned</div>
@@ -166,7 +178,7 @@ export function DashboardPage() {
             }
           }}
         >
-          <div className="quick-action-icon contra">🏦</div>
+          <div className="quick-action-icon contra"><Landmark size={24} /></div>
           <div className="quick-action-content">
             <div className="quick-action-title">Bank Transfer</div>
             <div className="quick-action-desc">Move between Cash & Bank accounts</div>
@@ -185,7 +197,7 @@ export function DashboardPage() {
             }
           }}
         >
-          <div className="quick-action-icon people">👥</div>
+          <div className="quick-action-icon people"><Users size={24} /></div>
           <div className="quick-action-content">
             <div className="quick-action-title">People & Debts</div>
             <div className="quick-action-desc">Track who owes you & whom you owe</div>
@@ -264,7 +276,7 @@ export function DashboardPage() {
             boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
             flexShrink: 0,
           }}>
-            🌊
+            <BarChart3 size={24} color="#fff" />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
@@ -296,7 +308,7 @@ export function DashboardPage() {
             <input
               type="text"
               className="input search-input"
-              placeholder="🔍 Search account..."
+              placeholder="Search account..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ maxWidth: 220, minHeight: 38 }}
