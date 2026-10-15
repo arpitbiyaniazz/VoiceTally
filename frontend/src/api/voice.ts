@@ -73,7 +73,7 @@ export const voiceApi = {
   /**
    * Generates natural speech talking audio using Voxtral TTS (voxtral-mini-tts-2603)
    */
-  async synthesizeSpeech(text: string, voice: string = 'en_paul_neutral'): Promise<Blob> {
+  async synthesizeSpeech(text: string, voice: string = 'neutral_female'): Promise<Blob> {
     const res = await api.post('/voice/tts', { text, voice }, { responseType: 'blob' });
     return res.data;
   },

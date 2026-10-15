@@ -96,6 +96,7 @@ export const VoiceStudioPage: React.FC = () => {
     voiceEnabled,
     sttModel,
     ttsModel,
+    voice,
     startListening,
     stopListening,
     speak,
@@ -151,7 +152,7 @@ export const VoiceStudioPage: React.FC = () => {
             </span>
           </div>
           <p className="voice-studio-subtitle">
-            Voice engine powered by Voxtral Realtime (STT: {sttModel} • TTS: {ttsModel}). Zero-discrepancy double-entry ledgers.
+            Voice engine powered by Voxtral Realtime (STT: {sttModel} • TTS: {ttsModel} • Female Voice: {voice}). Zero-discrepancy double-entry ledgers.
           </p>
         </div>
 
@@ -163,7 +164,7 @@ export const VoiceStudioPage: React.FC = () => {
             type="button"
           >
             {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            <span>{voiceEnabled ? `Voxtral TTS (${ttsModel}): ON` : `Voxtral TTS (${ttsModel}): OFF`}</span>
+            <span>{voiceEnabled ? `Voxtral Female TTS (${ttsModel}): ON` : `Voxtral Female TTS (${ttsModel}): OFF`}</span>
           </button>
         </div>
       </header>
@@ -196,7 +197,7 @@ export const VoiceStudioPage: React.FC = () => {
                 : isListening
                 ? `Recording audio for ${sttModel}...`
                 : isSpeaking
-                ? `Speaking via ${ttsModel}...`
+                ? `Speaking via ${ttsModel} (Female Voice)...`
                 : isProcessing
                 ? 'Processing Command...'
                 : 'Click Mic to Speak or Type Below'}

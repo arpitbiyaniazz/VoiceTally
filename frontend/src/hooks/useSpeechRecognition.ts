@@ -124,8 +124,23 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
-      utterance.pitch = 1.0;
+      utterance.pitch = 1.1; // Clear, pleasant pitch for female persona
       utterance.lang = 'en-IN';
+
+      // Auto-select female voice from available browser speech voices
+      const voices = window.speechSynthesis.getVoices();
+      const femaleVoice =
+        voices.find(
+          (v) =>
+            v.lang.startsWith('en') &&
+            /female|veena|samantha|victoria|zira|karen|tessa|moira|serena|fiona|kavya/i.test(v.name)
+        ) ||
+        voices.find((v) => /female|veena|samantha|victoria|zira|karen|tessa|moira/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith('en-IN') || v.lang.startsWith('en'));
+
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
@@ -173,7 +188,7 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions) {
   }, []);
 
   /**
-   * Speaks using voxtral-mini-tts-2603 with automatic graceful fallback
+   * Speaks using female Voxtral voice (neutral_female) with automatic graceful fallback
    */
   const speak = useCallback(
     async (text: string) => {
@@ -183,10 +198,11 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions) {
 
       try {
         setIsSpeaking(true);
-        // Call backend Voxtral TTS endpoint powered by voxtral-mini-tts-2603
+        // Call backend Voxtral TTS endpoint powered by voxtral-mini-tts-2603 with female voice
+        const chosenVoice = options?.preferredVoice || 'neutral_female';
         const audioBlob = await voiceApi.synthesizeSpeech(
           text,
-          options?.preferredVoice || 'en_paul_neutral'
+          chosenVoice
         );
 
         if (!audioBlob || audioBlob.size === 0) {
@@ -389,6 +405,8 @@ export function useSpeechRecognition(options?: UseSpeechRecognitionOptions) {
     voiceEnabled,
     sttModel: VOXTRAL_STT_MODEL,
     ttsModel: VOXTRAL_TTS_MODEL,
+    voice: options?.preferredVoice || 'neutral_female',
+    voiceGender: 'female',
     startListening,
     stopListening,
     speak,

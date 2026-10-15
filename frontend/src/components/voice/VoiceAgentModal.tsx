@@ -126,6 +126,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
     voiceEnabled,
     sttModel,
     ttsModel,
+    voice,
     startListening,
     stopListening,
     speak,
@@ -194,12 +195,27 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
             <div className="voice-orb-icon"><Mic size={22} /></div>
             <div>
               <h3 className="voice-title">VoiceTally AI Assistant</h3>
-              <p className="voice-subtitle" title={`STT: ${sttModel} | TTS: ${ttsModel}`}>
-                Voxtral Realtime • {sttModel}
+              <p className="voice-subtitle" title={`STT: ${sttModel} | TTS: ${ttsModel} (${voice})`}>
+                Voxtral Realtime • Female Voice ({voice})
               </p>
             </div>
           </div>
           <div className="voice-controls">
+            <span
+              className="voice-voice-indicator"
+              style={{
+                fontSize: '0.78rem',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-pill)',
+                background: 'rgba(236, 72, 153, 0.12)',
+                border: '1px solid rgba(236, 72, 153, 0.28)',
+                color: '#f472b6',
+                fontWeight: 500,
+              }}
+              title="Female Voice Persona (neutral_female)"
+            >
+              Female Voice
+            </span>
             <button
               className={`voice-btn-icon ${voiceEnabled ? 'active' : ''}`}
               onClick={toggleVoiceAudio}
@@ -400,7 +416,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                 : isListening
                 ? `🔴 Recording audio for ${sttModel}... Click to stop & transcribe`
                 : isSpeaking
-                ? `🔊 Speaking via ${ttsModel}...`
+                ? `🔊 Speaking via ${ttsModel} (Female Voice)...`
                 : pendingPreview
                 ? '⚡ Transaction awaiting confirmation. Say "Yes" or click Confirm.'
                 : speechError || (isSupported ? 'Click mic or type command below' : 'Text mode active')}

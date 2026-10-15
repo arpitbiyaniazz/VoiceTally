@@ -23,11 +23,18 @@ describe('VoxtralVoiceService Unit Tests', () => {
     expect(VoxtralVoiceService.getTTSModel()).toBe('voxtral-mini-tts-2603');
   });
 
-  it('returns voice status metadata correctly', () => {
+  it('correctly defaults to neutral_female voice preset', () => {
+    delete process.env.VOXTRAL_VOICE_ID;
+    expect(VoxtralVoiceService.getVoice()).toBe('neutral_female');
+  });
+
+  it('returns voice status metadata correctly with female gender', () => {
     process.env.MISTRAL_API_KEY = 'test-key';
     const status = VoxtralVoiceService.getVoiceStatus();
     expect(status.sttModel).toBe('voxtral-mini-transcribe-realtime-2602');
     expect(status.ttsModel).toBe('voxtral-mini-tts-2603');
+    expect(status.voice).toBe('neutral_female');
+    expect(status.gender).toBe('female');
     expect(status.provider).toBe('mistral-voxtral');
     expect(status.isConfigured).toBe(true);
   });

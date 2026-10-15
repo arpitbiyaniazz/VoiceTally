@@ -16,6 +16,7 @@ export interface VoxtralTTSResult {
 export class VoxtralVoiceService {
   public static readonly DEFAULT_STT_MODEL = 'voxtral-mini-transcribe-realtime-2602';
   public static readonly DEFAULT_TTS_MODEL = 'voxtral-mini-tts-2603';
+  public static readonly DEFAULT_VOICE = 'neutral_female';
   public static readonly DEFAULT_BASE_URL = 'https://api.mistral.ai/v1';
 
   public static getSTTModel(): string {
@@ -24,6 +25,10 @@ export class VoxtralVoiceService {
 
   public static getTTSModel(): string {
     return process.env.VOXTRAL_TTS_MODEL || this.DEFAULT_TTS_MODEL;
+  }
+
+  public static getVoice(): string {
+    return process.env.VOXTRAL_VOICE_ID || this.DEFAULT_VOICE;
   }
 
   public static getBaseUrl(): string {
@@ -37,6 +42,13 @@ export class VoxtralVoiceService {
     return {
       sttModel: this.getSTTModel(),
       ttsModel: this.getTTSModel(),
+      voice: this.getVoice(),
+      gender: 'female',
+      availableVoices: [
+        { id: 'neutral_female', label: 'Female (Neutral)', gender: 'female' },
+        { id: 'cheerful_female', label: 'Female (Cheerful)', gender: 'female' },
+        { id: 'casual_female', label: 'Female (Casual)', gender: 'female' },
+      ],
       provider: 'mistral-voxtral',
       isConfigured: Boolean(process.env.MISTRAL_API_KEY && process.env.MISTRAL_API_KEY.trim().length > 0),
       features: {
@@ -128,10 +140,11 @@ export class VoxtralVoiceService {
    */
   public static async synthesizeSpeech(
     text: string,
-    voice: string = 'en_paul_neutral'
+    voice?: string
   ): Promise<VoxtralTTSResult> {
     const startTime = Date.now();
     const model = this.getTTSModel();
+    const activeVoice = voice || this.getVoice();
     const apiKey = process.env.MISTRAL_API_KEY;
     const baseUrl = this.getBaseUrl();
 
@@ -147,7 +160,7 @@ export class VoxtralVoiceService {
     const payload = {
       model,
       input: text.trim(),
-      voice_id: voice,
+      voice_id: activeVoice,
       response_format: 'mp3',
     };
 

@@ -195,6 +195,8 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/voxtral-mini-transcribe-realtime-2602/i)).toBeInTheDocument();
     expect(screen.getAllByText(/voxtral-mini-tts-2603/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Female/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/neutral_female/i)).toBeInTheDocument();
   });
 });
 
