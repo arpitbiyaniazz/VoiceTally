@@ -76,7 +76,7 @@ export function DashboardPage() {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Welcome back, {user?.name || 'Friend'} 👋</h1>
+          <h1 className="page-title">Welcome, {user?.name || 'Friend'} 👋</h1>
           <p className="page-subtitle">Your double-entry financial pulse and voice ledger</p>
         </div>
         <div className="dashboard-header-actions">

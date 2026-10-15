@@ -42,15 +42,15 @@ export function SankeyFlowChart({
   }
 
   // Visual layout constants
-  const width = 840;
-  const height = 460;
-  const paddingX = 40;
-  const paddingY = 40;
+  const width = 1260;
+  const height = 520;
+  const paddingX = 60;
+  const paddingY = 50;
   const nodeWidth = 24;
 
   const leftX = paddingX;
-  const middleX = width / 2 - nodeWidth / 2;
-  const rightX = width - paddingX - nodeWidth;
+  const rightX = 840;
+  const middleX = (leftX + rightX) / 2 - nodeWidth / 2;
 
   const incomeNodes = nodes.filter((n) => n.type === 'income');
   const poolNode = nodes.find((n) => n.type === 'pool') || { id: 'pool', name: 'Revenue Pool', type: 'pool' as const };
@@ -218,7 +218,7 @@ export function SankeyFlowChart({
                   fontWeight="600"
                   alignmentBaseline="middle"
                 >
-                  {node.name.length > 18 ? node.name.slice(0, 16) + '...' : node.name}
+                  {node.name.length > 28 ? node.name.slice(0, 26) + '…' : node.name}
                 </text>
                 <text
                   x={layout.x + nodeWidth + 10}
@@ -297,20 +297,20 @@ export function SankeyFlowChart({
                   className={`sankey-node-rect ${isHovered ? 'focused' : ''}`}
                 />
                 <text
-                  x={layout.x - 10}
+                  x={layout.x + nodeWidth + 10}
                   y={layout.y + layout.height / 2 - 4}
-                  textAnchor="end"
+                  textAnchor="start"
                   fill="var(--color-text-primary)"
                   fontSize="12"
                   fontWeight="600"
                   alignmentBaseline="middle"
                 >
-                  {node.name.length > 20 ? node.name.slice(0, 18) + '...' : node.name}
+                  {node.name.length > 28 ? node.name.slice(0, 26) + '…' : node.name}
                 </text>
                 <text
-                  x={layout.x - 10}
+                  x={layout.x + nodeWidth + 10}
                   y={layout.y + layout.height / 2 + 12}
-                  textAnchor="end"
+                  textAnchor="start"
                   fill={isSavings ? '#06b6d4' : '#f43f5e'}
                   fontSize="11"
                   fontWeight="700"
