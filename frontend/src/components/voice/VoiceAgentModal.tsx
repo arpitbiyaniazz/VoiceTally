@@ -18,6 +18,7 @@ import {
   ShoppingBag,
   Banknote,
   Gem,
+  Square,
 } from 'lucide-react';
 import './VoiceAgentModal.css';
 
@@ -117,11 +118,14 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
 
   const {
     isListening,
+    isTranscribing,
     interimTranscript,
     error: speechError,
     isSupported,
     isSpeaking,
     voiceEnabled,
+    sttModel,
+    ttsModel,
     startListening,
     stopListening,
     speak,
@@ -190,7 +194,9 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
             <div className="voice-orb-icon"><Mic size={22} /></div>
             <div>
               <h3 className="voice-title">VoiceTally AI Assistant</h3>
-              <p className="voice-subtitle">Spoken Accounting & Natural Language Ledgers</p>
+              <p className="voice-subtitle" title={`STT: ${sttModel} | TTS: ${ttsModel}`}>
+                Voxtral Realtime • {sttModel}
+              </p>
             </div>
           </div>
           <div className="voice-controls">
@@ -387,17 +393,19 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
 
         {/* Footer & Mic Controls */}
         <div className="voice-footer">
-          <div className={`voice-live-status ${isListening ? 'listening' : ''}`}>
+          <div className={`voice-live-status ${isListening ? 'listening' : ''} ${isTranscribing ? 'transcribing' : ''}`}>
             <span>
-              {isListening
-                ? '🔴 Listening to your voice... Speak now'
+              {isTranscribing
+                ? `✨ Transcribing query with ${sttModel}...`
+                : isListening
+                ? `🔴 Recording audio for ${sttModel}... Click to stop & transcribe`
                 : isSpeaking
-                ? '🔊 Assistant is speaking...'
+                ? `🔊 Speaking via ${ttsModel}...`
                 : pendingPreview
                 ? '⚡ Transaction awaiting confirmation. Say "Yes" or click Confirm.'
                 : speechError || (isSupported ? 'Click mic or type command below' : 'Text mode active')}
             </span>
-            {isListening && (
+            {(isListening || isTranscribing) && (
               <div className="voice-wave-container">
                 <div className="voice-wave-bar" />
                 <div className="voice-wave-bar" />
@@ -411,11 +419,12 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
           <form onSubmit={handleFormSubmit} className="voice-input-row">
             <button
               type="button"
-              className={`voice-mic-main-btn ${isListening ? 'listening' : ''}`}
+              className={`voice-mic-main-btn ${isListening ? 'listening' : ''} ${isTranscribing ? 'transcribing' : ''}`}
               onClick={handleMicToggle}
-              title={isListening ? 'Stop Listening' : 'Start Voice Input'}
+              title={isListening ? 'Stop Listening & Transcribe' : 'Start Voice Input'}
+              disabled={isTranscribing}
             >
-              {isListening ? '⏹' : '🎙️'}
+              {isListening ? <Square size={18} /> : <Mic size={20} />}
             </button>
 
             <div className="voice-text-input-wrap">

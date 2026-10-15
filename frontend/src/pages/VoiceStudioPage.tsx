@@ -88,11 +88,14 @@ export const VoiceStudioPage: React.FC = () => {
 
   const {
     isListening,
+    isTranscribing,
     interimTranscript,
     error: speechError,
     isSupported,
     isSpeaking,
     voiceEnabled,
+    sttModel,
+    ttsModel,
     startListening,
     stopListening,
     speak,
@@ -148,7 +151,7 @@ export const VoiceStudioPage: React.FC = () => {
             </span>
           </div>
           <p className="voice-studio-subtitle">
-            Natural language conversational interface powered by zero-discrepancy double-entry ledgers.
+            Voice engine powered by Voxtral Realtime (STT: {sttModel} • TTS: {ttsModel}). Zero-discrepancy double-entry ledgers.
           </p>
         </div>
 
@@ -160,7 +163,7 @@ export const VoiceStudioPage: React.FC = () => {
             type="button"
           >
             {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            <span>{voiceEnabled ? 'Audio Speech Synthesis: ON' : 'Audio Speech Synthesis: OFF'}</span>
+            <span>{voiceEnabled ? `Voxtral TTS (${ttsModel}): ON` : `Voxtral TTS (${ttsModel}): OFF`}</span>
           </button>
         </div>
       </header>
@@ -174,36 +177,43 @@ export const VoiceStudioPage: React.FC = () => {
             <div className="voice-cockpit-glow" />
 
             <div className="voice-mic-trigger-wrap">
-              {isListening && <div className="voice-mic-ripple" />}
+              {(isListening || isTranscribing) && <div className="voice-mic-ripple" />}
               <button
                 type="button"
-                className={`voice-cockpit-mic-btn ${isListening ? 'listening' : ''}`}
+                className={`voice-cockpit-mic-btn ${isListening ? 'listening' : ''} ${isTranscribing ? 'transcribing' : ''}`}
                 onClick={handleMicToggle}
-                title={isListening ? 'Stop Listening' : 'Start Voice Dictation'}
-                aria-label={isListening ? 'Stop Listening' : 'Start Voice Dictation'}
+                title={isListening ? 'Stop Listening & Transcribe' : 'Start Voice Dictation'}
+                aria-label={isListening ? 'Stop Listening & Transcribe' : 'Start Voice Dictation'}
+                disabled={isTranscribing}
               >
                 {isListening ? <Square size={22} fill="currentColor" /> : <Mic size={26} />}
               </button>
             </div>
 
             <h2 className="voice-cockpit-title">
-              {isListening
-                ? 'Listening to your voice...'
+              {isTranscribing
+                ? `Transcribing query with ${sttModel}...`
+                : isListening
+                ? `Recording audio for ${sttModel}...`
+                : isSpeaking
+                ? `Speaking via ${ttsModel}...`
                 : isProcessing
                 ? 'Processing Command...'
                 : 'Click Mic to Speak or Type Below'}
             </h2>
 
             <p className="voice-cockpit-desc">
-              {isListening
-                ? 'Speak naturally: "Paid 500 for lunch from Cash", "Sharma paid 5000 in bank", or "What is my bank balance?"'
+              {isTranscribing
+                ? `Voxtral Realtime STT (${sttModel}) is transcribing your spoken accounting request.`
+                : isListening
+                ? 'Recording your voice query. Press stop when done to transcribe.'
                 : isSupported
-                ? 'Web Speech API is ready. Press microphone to dictate or type commands.'
+                ? `Ready for voice commands. Microphone captures audio for ${sttModel}.`
                 : 'Speech recognition not supported in this browser. Please type commands below.'}
             </p>
 
             {/* Soundwave Equalizer when active */}
-            {(isListening || isSpeaking || isProcessing) && (
+            {(isListening || isSpeaking || isProcessing || isTranscribing) && (
               <div style={{ marginBottom: 'var(--space-md)' }}>
                 <div className="voice-wave-container" style={{ height: '36px', gap: '6px' }}>
                   <div className="voice-wave-bar" style={{ width: 6 }} />

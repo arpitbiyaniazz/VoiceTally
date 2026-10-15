@@ -8,6 +8,22 @@ import { voiceApi } from '../api/voice';
 vi.mock('../api/voice', () => ({
   voiceApi: {
     process: vi.fn(),
+    transcribeAudio: vi.fn().mockResolvedValue({
+      transcript: 'Paid 500 for lunch from cash',
+      model: 'voxtral-mini-transcribe-realtime-2602',
+    }),
+    synthesizeSpeech: vi.fn().mockResolvedValue(new Blob(['dummy-audio'], { type: 'audio/mpeg' })),
+    getConfig: vi.fn().mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          sttModel: 'voxtral-mini-transcribe-realtime-2602',
+          ttsModel: 'voxtral-mini-tts-2603',
+          provider: 'mistral-voxtral',
+          isConfigured: true,
+        },
+      },
+    }),
   },
 }));
 
@@ -165,4 +181,20 @@ describe('UI: VoiceAgentModal & Studio Components', () => {
       expect(screen.getByRole('button', { name: /Yes, Confirm & Post/i })).toBeInTheDocument();
     });
   });
+
+  it('displays Voxtral Realtime STT and TTS models in UI indicators', () => {
+    render(
+      <BrowserRouter>
+        <VoiceStudioPage />
+      </BrowserRouter>
+    );
+
+    // Subtitle indicates Voxtral STT & TTS models
+    expect(
+      screen.getByText(/Voice engine powered by Voxtral Realtime/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/voxtral-mini-transcribe-realtime-2602/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/voxtral-mini-tts-2603/i).length).toBeGreaterThan(0);
+  });
 });
+
