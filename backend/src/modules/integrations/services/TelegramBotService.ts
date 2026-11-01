@@ -44,7 +44,19 @@ export interface TelegramBotReply {
   inlineKeyboard?: Array<Array<{ text: string; callback_data: string }>>;
   previewCard?: any;
   userId?: string;
-  actionTaken?: 'PREVIEW' | 'POSTED' | 'CANCELLED' | 'QUERY' | 'PAIRED' | 'UNLINKED' | 'COMMAND' | 'UNKNOWN';
+  actionTaken?: 'PREVIEW' | 'POSTED' | 'CANCELLED' | 'QUERY' | 'CLARIFY' | 'PAIRED' | 'UNLINKED' | 'COMMAND' | 'UNKNOWN';
+}
+
+/** Telegram HTML mode requires &, < and > in text to be escaped ("Food & Dining") */
+function escapeHtml(text: unknown): string {
+  return String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Telegram limits callback_data to 64 bytes; the button text is sent back as the user's reply */
+function callbackData(option: string): string {
+  let data = option;
+  while (Buffer.byteLength(data, 'utf8') > 64) data = data.slice(0, -1);
+  return data;
 }
 
 export class TelegramBotService {
@@ -189,7 +201,7 @@ export class TelegramBotService {
     if (result.executed && (result.voucher || result.data?.voucherId)) {
       return {
         chatId,
-        text: `✅ <b>Voucher Recorded Successfully!</b>\n\n${result.spokenResponse}`,
+        text: `✅ <b>Voucher Recorded Successfully!</b>\n\n${escapeHtml(result.spokenResponse)}`,
         parseMode: 'HTML',
         userId: user.id,
         actionTaken: 'POSTED',
@@ -205,7 +217,7 @@ export class TelegramBotService {
       if (result.executed) {
         return {
           chatId,
-          text: `✅ <b>Voucher Recorded Successfully!</b>\n\n${result.spokenResponse}`,
+          text: `✅ <b>Voucher Recorded Successfully!</b>\n\n${escapeHtml(result.spokenResponse)}`,
           parseMode: 'HTML',
           userId: user.id,
           actionTaken: 'POSTED',
@@ -213,7 +225,7 @@ export class TelegramBotService {
       } else {
         return {
           chatId,
-          text: `❌ <b>${result.displayTitle}</b>\n\n${result.spokenResponse}`,
+          text: `❌ <b>${escapeHtml(result.displayTitle)}</b>\n\n${escapeHtml(result.spokenResponse)}`,
           parseMode: 'HTML',
           userId: user.id,
           actionTaken: 'CANCELLED',
@@ -221,10 +233,25 @@ export class TelegramBotService {
       }
     }
 
+    // Follow-up question: offer the answers as buttons (the button text comes back as the reply)
+    if (result.needsClarification && result.clarification) {
+      const buttons = result.clarification.options
+        .slice(0, 4)
+        .map((option) => ({ text: option, callback_data: callbackData(option) }));
+      return {
+        chatId,
+        text: `🧾 <b>${escapeHtml(result.displayTitle)}</b>\n\n${escapeHtml(result.spokenResponse)}`,
+        parseMode: 'HTML',
+        inlineKeyboard: buttons.length > 0 ? [buttons.slice(0, 2), buttons.slice(2, 4)].filter((row) => row.length > 0) : undefined,
+        userId: user.id,
+        actionTaken: 'CLARIFY',
+      };
+    }
+
     if (result.intent.type === 'QUERY') {
       return {
         chatId,
-        text: `📊 <b>${result.displayTitle}</b>\n\n${result.spokenResponse}`,
+        text: `📊 <b>${escapeHtml(result.displayTitle)}</b>\n\n${escapeHtml(result.spokenResponse)}`,
         parseMode: 'HTML',
         userId: user.id,
         actionTaken: 'QUERY',
@@ -235,12 +262,16 @@ export class TelegramBotService {
       const data = result.data;
       if (data?.isPreview) {
         const previewMsg = [
-          `📋 <b>Voucher Preview (${data.voucherType})</b>`,
+          `📋 <b>Voucher Preview (${escapeHtml(data.voucherType)})</b>`,
           `━━━━━━━━━━━━━━━━━━━━`,
-          `• <b>Amount:</b> ${data.formattedAmount}`,
-          `• <b>Debit:</b> ${data.debitAccount} (Dr)`,
-          `• <b>Credit:</b> ${data.creditAccount} (Cr)`,
-          `• <b>Narration:</b> ${data.narration}`,
+          `• <b>Amount:</b> ${escapeHtml(data.formattedAmount)}`,
+          `• <b>Debit:</b> ${escapeHtml(data.debitAccount)} (Dr)`,
+          `• <b>Credit:</b> ${escapeHtml(data.creditAccount)} (Cr)`,
+          `• <b>Narration:</b> ${escapeHtml(data.narration)}`,
+          ...(data.isBackdated ? [`• <b>Date:</b> ${escapeHtml(data.date)}`] : []),
+          ...(Array.isArray(data.newAccounts) && data.newAccounts.length > 0
+            ? [`• <b>New:</b> ${data.newAccounts.map((a: { name: string; kind: string }) => `${escapeHtml(a.name)} (${escapeHtml(a.kind)})`).join(', ')}`]
+            : []),
           `━━━━━━━━━━━━━━━━━━━━`,
           `<i>⚖️ Double-entry mathematical balance verified.</i>`,
         ].join('\n');
@@ -264,7 +295,7 @@ export class TelegramBotService {
 
     return {
       chatId,
-      text: `🤖 <b>VoiceTally Assistant</b>\n\n${result.spokenResponse}`,
+      text: `🤖 <b>VoiceTally Assistant</b>\n\n${escapeHtml(result.spokenResponse)}`,
       parseMode: 'HTML',
       userId: user.id,
       actionTaken: 'UNKNOWN',

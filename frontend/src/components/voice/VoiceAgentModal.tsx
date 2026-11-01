@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
-import { voiceApi, type VoiceProcessResponse } from '../../api/voice';
+import React, { useState, useEffect, useRef } from 'react';
+import { useVoiceConversation, type ConversationTurn } from '../../hooks/useVoiceConversation';
+import { ClarificationCard, ConfirmTransactionDialog, PreviewNotes, SuggestionChips } from './VoiceConversationParts';
 import {
   Mic,
   Volume2,
@@ -13,22 +13,18 @@ import {
   Check,
   CheckCircle2,
   Landmark,
-  ArrowRight,
   TrendingUp,
   ShoppingBag,
   Banknote,
   Gem,
   Square,
+  BarChart3,
+  Radio,
+  AudioLines,
+  HelpCircle,
+  Utensils,
 } from 'lucide-react';
 import './VoiceAgentModal.css';
-
-interface Message {
-  id: string;
-  sender: 'user' | 'assistant';
-  text: string;
-  response?: VoiceProcessResponse;
-  timestamp: Date;
-}
 
 interface VoiceAgentModalProps {
   isOpen: boolean;
@@ -36,86 +32,23 @@ interface VoiceAgentModalProps {
   onTransactionExecuted?: () => void;
 }
 
-export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
-  isOpen,
-  onClose,
-  onTransactionExecuted,
-}) => {
+const SUGGESTIONS = [
+  { icon: <Landmark size={14} />, label: 'Bank balance', query: 'what is my bank balance' },
+  { icon: <Banknote size={14} />, label: 'ATM cash withdrawal', query: 'i made the withdrawal from the bank 5000' },
+  { icon: <Utensils size={14} />, label: 'Quick expense', query: 'Paid 500 for lunch' },
+  { icon: <ShoppingBag size={14} />, label: 'Customer credit purchase', query: 'Rahul bought goods for 12000' },
+  { icon: <Gem size={14} />, label: 'Net worth query', query: 'what is my net worth' },
+  { icon: <TrendingUp size={14} />, label: 'Monthly expenses', query: 'how much did i spend this month' },
+];
+
+const inlineIcon = { display: 'inline', verticalAlign: 'middle', marginRight: 4 } as const;
+
+export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({ isOpen, onClose, onTransactionExecuted }) => {
   const [inputVal, setInputVal] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingPreview, setPendingPreview] = useState<VoiceProcessResponse | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const speakRef = useRef<(text: string) => void>(() => {});
 
-  const handleSendText = useCallback(
-    async (textToSend: string, forceExecute?: boolean) => {
-      if (!textToSend.trim() || isProcessing) return;
-
-      const userMsg: Message = {
-        id: Date.now().toString(),
-        sender: 'user',
-        text: textToSend,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, userMsg]);
-      setInputVal('');
-      setIsProcessing(true);
-
-      try {
-        // If forceExecute is true or user is confirming, execute = true
-        const shouldExecute = forceExecute !== undefined ? forceExecute : false;
-        const res = await voiceApi.process(
-          { transcript: textToSend, execute: shouldExecute }
-        );
-        const voiceData = res.data.data;
-
-        const assistantMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          sender: 'assistant',
-          text: voiceData.spokenResponse,
-          response: voiceData,
-          timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, assistantMsg]);
-
-        // If preview mode, store pending state for transaction confirmation popup
-        if (voiceData.needsConfirmation || (voiceData.intent?.type === 'TRANSACTION' && !voiceData.executed && voiceData.data)) {
-          setPendingPreview(voiceData);
-        } else {
-          setPendingPreview(null);
-        }
-
-        // Speak response aloud if TTS enabled
-        if (voiceData.spokenResponse) {
-          speakRef.current(voiceData.spokenResponse);
-        }
-
-        // Notify parent if a transaction was recorded
-        if (voiceData.executed && onTransactionExecuted) {
-          onTransactionExecuted();
-        }
-      } catch (err: any) {
-        const errorMsg = err.response?.data?.message || 'Sorry, could not process that request.';
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            sender: 'assistant',
-            text: errorMsg,
-            timestamp: new Date(),
-          },
-        ]);
-        speakRef.current(errorMsg);
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [isProcessing, onTransactionExecuted]
-  );
-
+  const { turns, isProcessing, stage, clarification, preview, send, confirm, cancel, toggleMic, cancelAutoListen, speech } =
+    useVoiceConversation({ onTransactionExecuted, isActive: isOpen });
   const {
     isListening,
     isTranscribing,
@@ -126,77 +59,220 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
     voiceEnabled,
     sttModel,
     ttsModel,
-    voice,
-    startListening,
-    stopListening,
-    speak,
-    stopSpeaking,
+    voiceLabel,
     toggleVoiceAudio,
     clearError,
-  } = useSpeechRecognition({ onResult: (transcript) => handleSendText(transcript) });
-
-  useEffect(() => {
-    speakRef.current = speak;
-  }, [speak]);
+  } = speech;
 
   // Auto-scroll chat to bottom
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [messages, interimTranscript, isProcessing]);
+  }, [turns, interimTranscript, isProcessing]);
 
-  const handleMicToggle = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      stopSpeaking();
-      startListening();
-    }
-  };
+  const lastTurnId = turns[turns.length - 1]?.id;
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleSendText(inputVal);
+    if (!inputVal.trim()) return;
+    void send(inputVal, 'text');
+    setInputVal('');
   };
 
-  const handleConfirmPending = () => {
-    if (isProcessing) return;
-    handleSendText('confirm');
+  const handleOption = (option: string) => {
+    clearError();
+    void send(option, 'option');
   };
-
-  const handleCancelPending = () => {
-    if (isProcessing) return;
-    handleSendText('cancel');
-  };
-
-  const suggestions = [
-    { icon: <Landmark size={14} />, label: 'Bank balance', query: 'what is my bank balance' },
-    { icon: <Banknote size={14} />, label: 'ATM cash withdrawal', query: 'i made the withdrawal from the bank 5000' },
-    { icon: <ShoppingBag size={14} />, label: 'Customer credit purchase', query: 'Rahul bought goods for 12000' },
-    { icon: <Banknote size={14} />, label: 'Collect money from contact', query: 'i take 4000 muny from Rahul in cash' },
-    { icon: <Gem size={14} />, label: 'Net worth query', query: 'what is my net worth' },
-    { icon: <TrendingUp size={14} />, label: 'Monthly expenses', query: 'how much did i spend this month' },
-  ];
 
   if (!isOpen) return null;
 
+  const statusText = isTranscribing
+    ? `Transcribing with ${sttModel}…`
+    : isListening
+    ? stage === 'IDLE'
+      ? "Listening… I'll stop when you pause, or tap to finish."
+      : "Listening for your answer… I'll stop when you pause."
+    : isSpeaking
+    ? `Speaking (${voiceLabel})…`
+    : speechError
+    ? speechError
+    : stage === 'AWAITING_CONFIRMATION'
+    ? 'Entry ready — say "yes" to post, "cancel", or what to change.'
+    : stage === 'COLLECTING'
+    ? 'Answer the question above — speak, type, or tap an option.'
+    : isSupported
+    ? 'Tap the mic or type a command below'
+    : 'Text mode active';
+
+  const renderResponse = (turn: ConversationTurn) => {
+    const res = turn.response;
+    if (!res) return null;
+    const isLatest = turn.id === lastTurnId;
+    const data = res.data;
+    const turnClarification =
+      res.clarification ?? (res.conversation?.stage === 'COLLECTING' ? res.conversation.clarification : undefined);
+    const clarificationIsOpen = isLatest && stage === 'COLLECTING' && !!clarification;
+    const previewIsOpen = isLatest && stage === 'AWAITING_CONFIRMATION';
+
+    return (
+      <>
+        {/* 1. Follow-up question: what has been understood so far, plus answer options */}
+        {(clarificationIsOpen ? clarification : turnClarification) && (
+          <ClarificationCard
+            clarification={(clarificationIsOpen ? clarification : turnClarification)!}
+            interactive={clarificationIsOpen}
+            disabled={isProcessing}
+            onSelect={handleOption}
+          />
+        )}
+
+        {/* 2. Preview / Reconfirmation Voucher Card */}
+        {res.needsConfirmation && data && (
+          <div className="voice-card preview">
+            <div className="voice-card-header">
+              <span className="voice-card-badge preview">
+                <AlertTriangle size={14} style={inlineIcon} /> PREVIEW: {data.voucherType || 'VOUCHER'}
+              </span>
+              <span className="voice-card-amount">{data.formattedAmount || `₹${data.amount}`}</span>
+            </div>
+
+            <div className="voice-card-split">
+              <div className="voice-card-split-item">
+                <div className="label">Debit (Dr)</div>
+                <div className="val">{data.debitAccount}</div>
+              </div>
+              <div className="voice-card-split-item">
+                <div className="label">Credit (Cr)</div>
+                <div className="val">{data.creditAccount}</div>
+              </div>
+            </div>
+
+            {data.narration && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                <FileText size={14} style={inlineIcon} /> {data.narration}
+              </div>
+            )}
+
+            <PreviewNotes preview={data} />
+
+            {data.warning && (
+              <div style={{ fontSize: '0.78rem', color: '#f59e0b', marginTop: 4 }}>
+                <Zap size={14} style={inlineIcon} /> {data.warning}
+              </div>
+            )}
+
+            {previewIsOpen && (
+              <div className="voice-confirm-actions">
+                <button type="button" className="voice-confirm-btn" onClick={confirm} disabled={isProcessing}>
+                  <Check size={14} style={inlineIcon} /> Confirm & Post
+                </button>
+                <button type="button" className="voice-cancel-btn" onClick={cancel} disabled={isProcessing}>
+                  <X size={14} style={inlineIcon} /> Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3. Executed Transaction Voucher Card */}
+        {res.executed && (res.intent?.type === 'TRANSACTION' || data?.voucherId) && data && (
+          <div className="voice-card">
+            <div className="voice-card-header">
+              <span className={`voice-card-badge ${data.voucherType?.toLowerCase() || 'journal'}`}>
+                <CheckCircle2 size={14} style={inlineIcon} /> {data.voucherType || 'VOUCHER'} RECORDED
+              </span>
+              <span className="voice-card-amount">{data.formattedAmount || `₹${data.amount}`}</span>
+            </div>
+
+            <div className="voice-card-split">
+              <div className="voice-card-split-item">
+                <div className="label">Debit (Dr)</div>
+                <div className="val">{data.debitAccount}</div>
+              </div>
+              <div className="voice-card-split-item">
+                <div className="label">Credit (Cr)</div>
+                <div className="val">{data.creditAccount}</div>
+              </div>
+            </div>
+
+            {data.narration && (
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                <FileText size={14} style={inlineIcon} /> {data.narration}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 4. Query Financial Position Card */}
+        {res.intent?.type === 'QUERY' && data && (
+          <div className="voice-card">
+            <div className="voice-card-header">
+              <span className="voice-card-badge journal">
+                <BarChart3 size={14} style={inlineIcon} /> {res.displayTitle}
+              </span>
+              <span className="voice-card-amount">
+                {data.formattedBalance ||
+                  data.formattedNetWorth ||
+                  data.formattedTotalExpense ||
+                  data.formattedTotalRevenue ||
+                  `₹${data.amount || 0}`}
+              </span>
+            </div>
+
+            {Array.isArray(data.accounts) && data.accounts.length > 1 && (
+              <div className="voice-query-breakdown">
+                {data.accounts.map((acc: { name: string; formattedBalance?: string; balance?: number }) => (
+                  <div key={acc.name} className="voice-query-row">
+                    <span>{acc.name}</span>
+                    <span>{acc.formattedBalance ?? `₹${acc.balance ?? 0}`}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {data.formattedCash && data.formattedBank && (
+              <div className="voice-query-breakdown">
+                <div className="voice-query-row">
+                  <span>Cash</span>
+                  <span>{data.formattedCash}</span>
+                </div>
+                <div className="voice-query-row">
+                  <span>Bank</span>
+                  <span>{data.formattedBank}</span>
+                </div>
+              </div>
+            )}
+
+            {data.role && (
+              <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+                Status: <strong>{data.role}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 5. Example requests when the assistant did not understand */}
+        {isLatest && res.intent?.type === 'UNKNOWN' && Array.isArray(data?.suggestions) && data.suggestions.length > 0 && (
+          <SuggestionChips suggestions={data.suggestions} disabled={isProcessing} onSelect={handleOption} />
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="voice-modal-backdrop" onClick={onClose}>
-      <div
-        className="voice-modal"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="VoiceTally AI Voice Assistant"
-      >
+      <div className="voice-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="VoiceTally AI Voice Assistant">
         {/* Header */}
         <div className="voice-header">
           <div className="voice-title-wrap">
-            <div className="voice-orb-icon"><Mic size={22} /></div>
+            <div className="voice-orb-icon">
+              <Mic size={22} />
+            </div>
             <div>
               <h3 className="voice-title">VoiceTally AI Assistant</h3>
-              <p className="voice-subtitle" title={`STT: ${sttModel} | TTS: ${ttsModel} (${voice})`}>
-                Voxtral Realtime • Female Voice ({voice})
+              <p className="voice-subtitle" title={`STT: ${sttModel} | TTS: ${ttsModel} (${voiceLabel})`}>
+                Voxtral • {voiceLabel}
               </p>
             </div>
           </div>
@@ -212,7 +288,7 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                 color: '#f472b6',
                 fontWeight: 500,
               }}
-              title="Female Voice Persona (neutral_female)"
+              title={`Female voice persona (${voiceLabel})`}
             >
               Female Voice
             </span>
@@ -222,7 +298,15 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
               title={voiceEnabled ? 'Mute Spoken Audio' : 'Unmute Spoken Audio'}
               type="button"
             >
-              {voiceEnabled ? <><Volume2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Audio ON</> : <><VolumeX size={15} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Audio OFF</>}
+              {voiceEnabled ? (
+                <>
+                  <Volume2 size={15} style={inlineIcon} /> Audio ON
+                </>
+              ) : (
+                <>
+                  <VolumeX size={15} style={inlineIcon} /> Audio OFF
+                </>
+              )}
             </button>
             <button className="voice-btn-icon" onClick={onClose} title="Close Assistant" type="button">
               <X size={16} />
@@ -232,21 +316,23 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
 
         {/* Conversation Body */}
         <div className="voice-body" ref={bodyRef}>
-          {messages.length === 0 && (
+          {turns.length === 0 && (
             <div className="voice-welcome-card">
-              <div className="voice-welcome-orb"><Sparkles size={28} /></div>
+              <div className="voice-welcome-orb">
+                <Sparkles size={28} />
+              </div>
               <h4 className="voice-welcome-title">Speak or Type Your Financial Request</h4>
               <p className="voice-welcome-desc">
-                Record bank withdrawals, credit sales, expense payments, or ask any balance and net worth question.
-                All transactions will be previewed for confirmation before posting.
+                Record withdrawals, credit sales, expenses, or ask about balances and net worth. If something is missing —
+                like the amount or how you paid — I'll ask. Every entry is previewed for confirmation before posting.
               </p>
 
               <div className="voice-chips-grid">
-                {suggestions.map((item, idx) => (
+                {SUGGESTIONS.map((item) => (
                   <button
-                    key={idx}
+                    key={item.label}
                     className="voice-chip"
-                    onClick={() => handleSendText(item.query)}
+                    onClick={() => handleOption(item.query)}
                     type="button"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
@@ -258,135 +344,30 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
             </div>
           )}
 
-          {messages.map((msg) => (
-            <div key={msg.id} className={`voice-msg ${msg.sender}`}>
-              <div className="voice-bubble">
-                <div>{msg.text}</div>
-
-                {/* 1. Preview / Reconfirmation Voucher Card */}
-                {msg.response?.needsConfirmation && msg.response?.data && (
-                  <div className="voice-card preview">
-                    <div className="voice-card-header">
-                      <span className="voice-card-badge preview">
-                        <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> PREVIEW: {msg.response.data.voucherType || 'VOUCHER'}
-                      </span>
-                      <span className="voice-card-amount">
-                        {msg.response.data.formattedAmount || `₹${msg.response.data.amount}`}
-                      </span>
-                    </div>
-
-                    <div className="voice-card-split">
-                      <div className="voice-card-split-item">
-                        <div className="label">Debit (Dr)</div>
-                        <div className="val">{msg.response.data.debitAccount}</div>
-                      </div>
-                      <div className="voice-card-split-item">
-                        <div className="label">Credit (Cr)</div>
-                        <div className="val">{msg.response.data.creditAccount}</div>
-                      </div>
-                    </div>
-
-                    {msg.response.data.narration && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                        <FileText size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {msg.response.data.narration}
-                      </div>
-                    )}
-
-                    {msg.response.data.warning && (
-                      <div style={{ fontSize: '0.78rem', color: '#f59e0b', marginTop: 4 }}>
-                        <Zap size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {msg.response.data.warning}
-                      </div>
-                    )}
-
-                    {/* Interactive Confirmation Actions */}
-                    <div className="voice-confirm-actions">
-                      <button
-                        type="button"
-                        className="voice-confirm-btn"
-                        onClick={handleConfirmPending}
-                        disabled={isProcessing}
-                      >
-                        <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Confirm & Post
-                      </button>
-                      <button
-                        type="button"
-                        className="voice-cancel-btn"
-                        onClick={handleCancelPending}
-                        disabled={isProcessing}
-                      >
-                        <X size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Executed Transaction Voucher Card */}
-                {msg.response?.executed && msg.response?.intent?.type === 'TRANSACTION' && msg.response?.data && (
-                  <div className="voice-card">
-                    <div className="voice-card-header">
-                      <span
-                        className={`voice-card-badge ${
-                          msg.response.data.voucherType?.toLowerCase() || 'journal'
-                        }`}
-                      >
-                        <CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {msg.response.data.voucherType || 'VOUCHER'} RECORDED
-                      </span>
-                      <span className="voice-card-amount">
-                        {msg.response.data.formattedAmount || `₹${msg.response.data.amount}`}
-                      </span>
-                    </div>
-
-                    <div className="voice-card-split">
-                      <div className="voice-card-split-item">
-                        <div className="label">Debit (Dr)</div>
-                        <div className="val">{msg.response.data.debitAccount}</div>
-                      </div>
-                      <div className="voice-card-split-item">
-                        <div className="label">Credit (Cr)</div>
-                        <div className="val">{msg.response.data.creditAccount}</div>
-                      </div>
-                    </div>
-
-                    {msg.response.data.narration && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                        📝 {msg.response.data.narration}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 3. Query Financial Position Card */}
-                {msg.response?.intent?.type === 'QUERY' && msg.response?.data && (
-                  <div className="voice-card">
-                    <div className="voice-card-header">
-                      <span className="voice-card-badge journal">
-                        📊 {msg.response.displayTitle}
-                      </span>
-                      <span className="voice-card-amount">
-                        {msg.response.data.formattedBalance ||
-                          msg.response.data.formattedNetWorth ||
-                          msg.response.data.formattedTotalExpense ||
-                          msg.response.data.formattedTotalRevenue ||
-                          `₹${msg.response.data.amount || 0}`}
-                      </span>
-                    </div>
-
-                    {msg.response.data.role && (
-                      <div style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-                        Status: <strong>{msg.response.data.role}</strong>
-                      </div>
-                    )}
-                  </div>
-                )}
+          {turns.map((turn) => (
+            <React.Fragment key={turn.id}>
+              <div className="voice-msg user">
+                <div className="voice-bubble">
+                  {turn.source === 'voice' && <Mic size={13} style={inlineIcon} />}
+                  {turn.transcript}
+                </div>
               </div>
-            </div>
+              {(turn.response || turn.error) && (
+                <div className="voice-msg assistant">
+                  <div className="voice-bubble">
+                    <div>{turn.response ? turn.response.spokenResponse : turn.error}</div>
+                    {renderResponse(turn)}
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
           ))}
 
           {/* Interim listening transcript */}
           {isListening && interimTranscript && (
             <div className="voice-msg user">
               <div className="voice-bubble" style={{ opacity: 0.8, fontStyle: 'italic' }}>
-                🎙️ "{interimTranscript}..."
+                <AudioLines size={13} style={inlineIcon} /> "{interimTranscript}..."
               </div>
             </div>
           )}
@@ -410,16 +391,15 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
         {/* Footer & Mic Controls */}
         <div className="voice-footer">
           <div className={`voice-live-status ${isListening ? 'listening' : ''} ${isTranscribing ? 'transcribing' : ''}`}>
-            <span>
-              {isTranscribing
-                ? `✨ Transcribing query with ${sttModel}...`
-                : isListening
-                ? `🔴 Recording audio for ${sttModel}... Click to stop & transcribe`
-                : isSpeaking
-                ? `🔊 Speaking via ${ttsModel} (Female Voice)...`
-                : pendingPreview
-                ? '⚡ Transaction awaiting confirmation. Say "Yes" or click Confirm.'
-                : speechError || (isSupported ? 'Click mic or type command below' : 'Text mode active')}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {isListening ? (
+                <Radio size={14} />
+              ) : stage === 'COLLECTING' ? (
+                <HelpCircle size={14} />
+              ) : stage === 'AWAITING_CONFIRMATION' ? (
+                <Zap size={14} />
+              ) : null}
+              {statusText}
             </span>
             {(isListening || isTranscribing) && (
               <div className="voice-wave-container">
@@ -436,9 +416,13 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
             <button
               type="button"
               className={`voice-mic-main-btn ${isListening ? 'listening' : ''} ${isTranscribing ? 'transcribing' : ''}`}
-              onClick={handleMicToggle}
+              onClick={() => {
+                clearError();
+                toggleMic();
+              }}
               title={isListening ? 'Stop Listening & Transcribe' : 'Start Voice Input'}
-              disabled={isTranscribing}
+              aria-label={isListening ? 'Stop Listening & Transcribe' : 'Start Voice Input'}
+              disabled={isTranscribing || isProcessing}
             >
               {isListening ? <Square size={18} /> : <Mic size={20} />}
             </button>
@@ -448,22 +432,21 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
                 type="text"
                 className="voice-text-input"
                 placeholder={
-                  pendingPreview
-                    ? 'Type "confirm" or "cancel"...'
+                  stage === 'AWAITING_CONFIRMATION'
+                    ? 'Type "confirm", "cancel", or a change…'
+                    : stage === 'COLLECTING'
+                    ? 'Type your answer…'
                     : 'Say or type e.g. "I made the withdrawal from the bank 5000"...'
                 }
                 value={inputVal}
                 onChange={(e) => {
                   setInputVal(e.target.value);
+                  cancelAutoListen();
                   if (speechError) clearError();
                 }}
                 disabled={isProcessing}
               />
-              <button
-                type="submit"
-                className="voice-send-btn"
-                disabled={!inputVal.trim() || isProcessing}
-              >
+              <button type="submit" className="voice-send-btn" disabled={!inputVal.trim() || isProcessing}>
                 Send
               </button>
             </div>
@@ -471,108 +454,23 @@ export const VoiceAgentModal: React.FC<VoiceAgentModalProps> = ({
         </div>
 
         {/* Transaction Confirmation Popup Dialog Overlay */}
-        {pendingPreview && pendingPreview.data && (
-          <div
-            className="voice-popup-overlay"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="voice-popup-title"
-          >
-            <div className="voice-popup-dialog">
-              <div className="voice-popup-header">
-                <div className="voice-popup-badge-wrap">
-                  <span className="voice-popup-badge-icon">⚡</span>
-                  <div>
-                    <h4 id="voice-popup-title" className="voice-popup-title">
-                      Confirm Transaction
-                    </h4>
-                    <p className="voice-popup-subtitle">Review before recording into double-entry ledger</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="voice-popup-close-btn"
-                  onClick={handleCancelPending}
-                  disabled={isProcessing}
-                  title="Cancel Transaction"
-                  aria-label="Cancel"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="voice-popup-body">
-                <div className="voice-popup-question-banner">
-                  <span className="voice-popup-question-icon" style={{ display: 'flex', alignItems: 'center' }}><AlertTriangle size={16} /></span>
-                  <span>Do you want to proceed with this transaction?</span>
-                </div>
-
-                <div className="voice-popup-summary-card">
-                  <div className="voice-popup-summary-top">
-                    <span
-                      className={`voice-card-badge ${
-                        pendingPreview.data.voucherType?.toLowerCase() || 'journal'
-                      }`}
-                    >
-                      {pendingPreview.data.voucherType || 'TRANSACTION'} VOUCHER
-                    </span>
-                    <span className="voice-popup-amount">
-                      {pendingPreview.data.formattedAmount || `₹${pendingPreview.data.amount}`}
-                    </span>
-                  </div>
-
-                  <div className="voice-popup-ledger-grid">
-                    <div className="voice-popup-ledger-box debit">
-                      <span className="ledger-tag dr">Debit (Dr)</span>
-                      <span className="ledger-account-name">{pendingPreview.data.debitAccount}</span>
-                    </div>
-                    <div className="voice-popup-arrow"><ArrowRight size={16} /></div>
-                    <div className="voice-popup-ledger-box credit">
-                      <span className="ledger-tag cr">Credit (Cr)</span>
-                      <span className="ledger-account-name">{pendingPreview.data.creditAccount}</span>
-                    </div>
-                  </div>
-
-                  {pendingPreview.data.narration && (
-                    <div className="voice-popup-narration-box">
-                      <span className="narration-icon"><FileText size={14} /></span>
-                      <span className="narration-text">{pendingPreview.data.narration}</span>
-                    </div>
-                  )}
-
-                  {pendingPreview.data.warning && (
-                    <div className="voice-popup-warning-box">
-                      <span><Zap size={14} /></span>
-                      <span>{pendingPreview.data.warning}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="voice-popup-voice-hint" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Mic size={14} /> Speak <strong>"Yes"</strong> / <strong>"Confirm"</strong>, or <strong>"Cancel"</strong> / <strong>"No"</strong>
-                </div>
-              </div>
-
-              <div className="voice-popup-footer">
-                <button
-                  type="button"
-                  className="voice-popup-btn confirm"
-                  onClick={handleConfirmPending}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? 'Posting...' : <><Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> Yes, Confirm & Post</>}
-                </button>
-                <button
-                  type="button"
-                  className="voice-popup-btn cancel"
-                  onClick={handleCancelPending}
-                  disabled={isProcessing}
-                >
-                  <X size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> No, Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+        {stage === 'AWAITING_CONFIRMATION' && preview && (
+          <ConfirmTransactionDialog
+            preview={preview}
+            titleId="voice-popup-title"
+            isProcessing={isProcessing}
+            isListening={isListening}
+            isTranscribing={isTranscribing}
+            interimTranscript={interimTranscript}
+            onConfirm={confirm}
+            onCancel={cancel}
+            onMicToggle={() => {
+              clearError();
+              toggleMic();
+            }}
+            onSubmitText={(text) => void send(text, 'text')}
+            onTyping={cancelAutoListen}
+          />
         )}
       </div>
     </div>

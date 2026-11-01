@@ -120,6 +120,84 @@ describe('Voice AI Agent — Evaluation Benchmark Suite (Evals)', () => {
     expect(safetyRate).toBe(100);
   });
 
+  it('reads realistic, messy utterances correctly (intent, action, amount and counterparty)', () => {
+    type Expect = { type: string; action?: string; target?: string; amount?: number | null; person?: string | null; category?: string };
+    // amount / person null = must be left for a follow-up question (not guessed)
+    const REALISTIC: Array<[string, Expect]> = [
+      ['Sharma paid 5000 in bank', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 5000, person: 'Sharma' }],
+      ['Purchased office stationery for 1200 on credit', { type: 'TRANSACTION', action: 'USER_BOUGHT', amount: 1200, person: null, category: 'Stationery' }],
+      ['Paid electricity bill of 2200 from bank', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 2200, category: 'Electricity' }],
+      ['Paid rent 15000', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 15000, category: 'Rent' }],
+      ['I paid fifteen thousand for rent', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 15000, category: 'Rent' }],
+      ['Rahul bought 2 laptops for 90000', { type: 'TRANSACTION', action: 'PERSON_BOUGHT', amount: 90000, person: 'Rahul' }],
+      ['I withdrew 5000', { type: 'TRANSACTION', action: 'WITHDRAWAL', amount: 5000 }],
+      ['Deposited 8000 in my bank account', { type: 'TRANSACTION', action: 'DEPOSIT', amount: 8000 }],
+      ['I took 5000 from the bank', { type: 'TRANSACTION', action: 'WITHDRAWAL', amount: 5000 }],
+      ['Got salary of 60000 from company', { type: 'TRANSACTION', action: 'DIRECT_INCOME', amount: 60000, person: null, category: 'Salary' }],
+      ['Received freelance payment 15000 in cash', { type: 'TRANSACTION', action: 'DIRECT_INCOME', amount: 15000, category: 'Freelance Income' }],
+      ['Received 5000 from Rahul Sharma via UPI', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 5000, person: 'Rahul Sharma' }],
+      ['Paid 500 for current bill', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 500, category: 'Electricity' }],
+      ['one lakh fifty thousand received from Vikram', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 150000, person: 'Vikram' }],
+      ['Paid for groceries', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: null, category: 'Groceries' }],
+      ['Gave money to Rahul', { type: 'TRANSACTION', action: 'GIVE_TO_PERSON', amount: null, person: 'Rahul' }],
+      ['Rahul 5000', { type: 'DETAILS', amount: 5000, person: 'Rahul' }],
+      ['received 12,500 from Vikramaditya Sharma through UPI.', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 12500, person: 'Vikramaditya Sharma' }],
+      ['राहुल को 5000 रुपए दे', { type: 'TRANSACTION', action: 'GIVE_TO_PERSON', amount: 5000, person: 'Rahul' }],
+      ['Spent two thousand five hundred on petrol using card', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 2500, category: 'Travel & Fuel' }],
+      ['Lent 2000 to a friend', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 2000, person: null }],
+      ['Paid 500 to Amit Das for dinner', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 500, person: 'Amit Das', category: 'Food & Dining' }],
+      ['Amit Das paid 3000 via gpay', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 3000, person: 'Amit Das' }],
+      ['My brother paid me 2000', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 2000, person: 'Brother' }],
+      ['Bought groceries for 850 using phonepe', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 850, category: 'Groceries' }],
+      ['Sold goods to Sarah for 3000', { type: 'TRANSACTION', action: 'PERSON_BOUGHT', amount: 3000, person: 'Sarah' }],
+      ['Rahul ko 5000 udhaar diya', { type: 'TRANSACTION', action: 'GIVE_TO_PERSON', amount: 5000, person: 'Rahul' }],
+      ['Rahul se 5000 udhaar liya', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 5000, person: 'Rahul' }],
+      ['Sharma ji se dedh lakh mile bank me', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 150000, person: 'Sharma' }],
+      ['do hazaar ka petrol dalwaya card se', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 2000, category: 'Travel & Fuel' }],
+      ['Paid 2 bills of 500 each', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 1000 }],
+      ['Transferred 20000 to Priya via NEFT', { type: 'TRANSACTION', action: 'GIVE_TO_PERSON', amount: 20000, person: 'Priya' }],
+      ['Received salary 75000 in HDFC', { type: 'TRANSACTION', action: 'DIRECT_INCOME', amount: 75000, category: 'Salary' }],
+      ['paid 500rs for coffee', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 500, category: 'Food & Dining' }],
+      ['Paid Rahul 5000 for rent', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 5000, person: 'Rahul', category: 'Rent' }],
+      ['got refund of 1200 from amazon', { type: 'TRANSACTION', action: 'DIRECT_INCOME', amount: 1200, category: 'Refunds & Cashback' }],
+      ['Got 5000 from Dad', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 5000, person: 'Dad' }],
+      ['sadhe teen hazaar diye Mohan ko cash', { type: 'TRANSACTION', action: 'GIVE_TO_PERSON', amount: 3500, person: 'Mohan' }],
+      ['can you record 500 for lunch', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 500, category: 'Food & Dining' }],
+      ['Took a cab home for 340', { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 340, category: 'Travel & Fuel' }],
+      ["My landlord got his 18k for this month's rent via GPay", { type: 'TRANSACTION', action: 'DIRECT_PAYMENT', amount: 18000, category: 'Rent' }],
+      ['I just got back 3,000 that I had lent to Priya', { type: 'TRANSACTION', action: 'RECEIVE_FROM_PERSON', amount: 3000, person: 'Priya' }],
+      ['Rahul got 2000 from me in cash', { type: 'TRANSACTION', action: 'GIVE_TO_PERSON', amount: 2000, person: 'Rahul' }],
+      ['What did I spend on groceries?', { type: 'QUERY', target: 'EXPENSE_CATEGORY' }],
+      ['How much profit did I make this month?', { type: 'QUERY', target: 'TOTAL_INCOME' }],
+      ['how much money do I have', { type: 'QUERY', target: 'CASH_AND_BANK' }],
+      ["what is Rahul's balance", { type: 'QUERY', target: 'PERSON_BALANCE' }],
+      ['yeah go ahead', { type: 'CONFIRMATION' }],
+      ['okay, post it', { type: 'CONFIRMATION' }],
+      ["don't post it", { type: 'CONFIRMATION' }],
+    ];
+
+    let correct = 0;
+    const misses: string[] = [];
+    for (const [input, want] of REALISTIC) {
+      const r: any = VoiceParser.parse(input);
+      const d = r.details ?? {};
+      const ok =
+        r.type === want.type &&
+        (want.action === undefined || r.action === want.action) &&
+        (want.target === undefined || r.target === want.target) &&
+        (want.amount === undefined || (want.amount === null ? d.amount === undefined : d.amount === want.amount)) &&
+        (want.person === undefined || (want.person === null ? d.personName === undefined : d.personName === want.person)) &&
+        (want.category === undefined || d.categoryName === want.category);
+      if (ok) correct++;
+      else misses.push(`${input} → ${JSON.stringify({ type: r.type, action: r.action ?? r.target, ...d })}`);
+    }
+
+    const accuracy = (correct / REALISTIC.length) * 100;
+    console.log(`\nRealistic utterance accuracy: ${accuracy.toFixed(1)}% (${correct}/${REALISTIC.length})`);
+    if (misses.length) console.log(`Misses:\n  ${misses.join('\n  ')}`);
+    expect(accuracy).toBeGreaterThanOrEqual(95);
+  });
+
   it('validates financial guardrails and double-entry invariants', () => {
     // Zero or negative amounts must fail validation
     expect(FinancialGuardrails.validateAmount(0).passed).toBe(false);

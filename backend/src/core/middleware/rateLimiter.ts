@@ -9,6 +9,10 @@ interface RateLimitOptions {
   keyPrefix?: string;  // Redis key prefix
 }
 
+// The shared client queues commands forever while disconnected (maxRetriesPerRequest: null),
+// so give up quickly and fail open instead of hanging the request
+const REDIS_TIMEOUT_MS = 1000;
+
 /**
  * Redis-backed sliding window rate limiter.
  * Per-user when authenticated, per-IP when not.
@@ -21,6 +25,12 @@ export function rateLimiter(options: RateLimitOptions) {
   } = options;
 
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    if (!['ready', 'connect', 'connecting'].includes(redis.status)) {
+      next();
+      return;
+    }
+
+    let timer: NodeJS.Timeout | undefined;
     try {
       // Use userId if authenticated, otherwise IP
       const identifier =
@@ -39,7 +49,12 @@ export function rateLimiter(options: RateLimitOptions) {
       pipeline.zcard(key); // Count entries in window
       pipeline.expire(key, Math.ceil(windowMs / 1000)); // TTL
 
-      const results = await pipeline.exec();
+      const results = await Promise.race([
+        pipeline.exec(),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), REDIS_TIMEOUT_MS);
+        }),
+      ]);
       if (!results) {
         next();
         return;
@@ -62,6 +77,8 @@ export function rateLimiter(options: RateLimitOptions) {
       // If Redis is down, fail open (allow the request)
       console.error('Rate limiter error (failing open):', error);
       next();
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   };
 }

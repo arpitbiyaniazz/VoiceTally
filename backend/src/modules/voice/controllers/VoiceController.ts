@@ -56,18 +56,20 @@ export const VoiceController = {
   },
 
   /**
-   * Transcribe user audio query using voxtral-mini-transcribe-realtime-2602
+   * Transcribe recorded user audio with Voxtral (file transcription)
    */
   async transcribe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const { userId } = req as AuthenticatedRequest;
       const { audioBase64, mimeType, fileName } = req.body;
 
       if (!audioBase64 || typeof audioBase64 !== 'string') {
         throw new ValidationError('audioBase64 string is required for transcription');
       }
 
-      // Strip potential data URL prefix: "data:audio/webm;base64,..."
-      const cleanedBase64 = audioBase64.replace(/^data:audio\/[a-zA-Z0-9.-]+;base64,/, '');
+      // Strip a data URL prefix, including codec parameters: "data:audio/webm;codecs=opus;base64,..."
+      const dataUrl = audioBase64.match(/^data:([^,]*?);base64,/);
+      const cleanedBase64 = dataUrl ? audioBase64.slice(dataUrl[0].length) : audioBase64;
       const audioBuffer = Buffer.from(cleanedBase64, 'base64');
 
       if (audioBuffer.length === 0) {
@@ -75,10 +77,13 @@ export const VoiceController = {
       }
 
       const { VoxtralVoiceService } = await import('../services/VoxtralVoiceService.js');
+      // Bias recognition towards this user's contact and account names
+      const contextBias = userId ? await VoiceAgentService.getTranscriptionHints(userId) : [];
       const result = await VoxtralVoiceService.transcribe(
         audioBuffer,
-        mimeType || 'audio/webm',
-        fileName || 'user_voice_query.webm'
+        VoxtralVoiceService.normalizeMimeType(mimeType || dataUrl?.[1]),
+        fileName || 'user_voice_query.webm',
+        { contextBias }
       );
 
       res.status(200).json({
@@ -102,7 +107,7 @@ export const VoiceController = {
       }
 
       const { VoxtralVoiceService } = await import('../services/VoxtralVoiceService.js');
-      const result = await VoxtralVoiceService.synthesizeSpeech(text, voice);
+      const result = await VoxtralVoiceService.synthesizeSpeech(text, typeof voice === 'string' ? voice : undefined);
 
       res.setHeader('Content-Type', result.contentType);
       res.setHeader('X-Voxtral-Model', result.model);
