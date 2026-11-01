@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ledgerApi } from '../api/ledger';
+import {
+  BookOpen,
+  Mic,
+  FileText,
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 
 interface JournalEntry {
   id: string;
@@ -74,7 +83,7 @@ export function JournalBookPage() {
           <input
             type="text"
             className="input search-input"
-            placeholder="🔍 Search narration or account..."
+            placeholder="Search narration or account..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ maxWidth: 260, minHeight: 40 }}
@@ -95,7 +104,9 @@ export function JournalBookPage() {
 
       {filteredEntries.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📒</div>
+          <div className="empty-state-icon">
+            <BookOpen size={48} />
+          </div>
           <div className="empty-state-title">No transactions found</div>
           <p className="text-muted">
             {searchQuery || voucherFilter !== 'ALL'
@@ -139,21 +150,37 @@ export function JournalBookPage() {
                         </span>
                       </td>
                       <td className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>
-                        {entry.source === 'VOICE' ? '🎙️ Voice AI' : '📝 Manual'}
+                        {entry.source === 'VOICE' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Mic size={13} /> Voice AI
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <FileText size={13} /> Manual
+                          </span>
+                        )}
                       </td>
                       <td>
                         {entry.postedAt ? (
-                          <span style={{ color: 'var(--color-credit)', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
-                            ✓ Balanced
+                          <span style={{ color: 'var(--color-credit)', fontWeight: 700, fontSize: 'var(--text-xs)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <CheckCircle2 size={13} /> Balanced
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--color-warning)', fontWeight: 700, fontSize: 'var(--text-xs)' }}>
-                            ⏳ Pending
+                          <span style={{ color: 'var(--color-warning)', fontWeight: 700, fontSize: 'var(--text-xs)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Clock size={13} /> Pending
                           </span>
                         )}
                       </td>
                       <td style={{ textAlign: 'center', color: 'var(--color-accent)', fontWeight: 700 }}>
-                        {isExpanded ? '▲ Hide' : '▼ View'}
+                        {isExpanded ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            <ChevronUp size={14} /> Hide
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            <ChevronDown size={14} /> View
+                          </span>
+                        )}
                       </td>
                     </tr>
 

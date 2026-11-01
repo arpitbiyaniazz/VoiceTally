@@ -62,7 +62,7 @@ describe('VoiceParser — Unit Tests', () => {
       expect(res.action).toBe('USER_BOUGHT');
       expect(res.voucherType).toBe('JOURNAL');
       expect(res.amount).toBe(3500);
-      expect(res.personName).toBe('Apex');
+      expect(res.personName).toBe('Apex Traders');
       expect(res.categoryName).toBe('Stationery');
     }
   });

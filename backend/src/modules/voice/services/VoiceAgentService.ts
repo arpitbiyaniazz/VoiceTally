@@ -1,35 +1,140 @@
-import { prisma } from '../../../core/database/prisma.js';
 import { redis } from '../../../core/redis/client.js';
-import { VoiceParser, type VoiceParsedResult, type VoiceTransactionIntent } from './VoiceParser.js';
-import { LLMFunctionCallingService } from './LLMFunctionCallingService.js';
+import {
+  VoiceParser,
+  type TransactionAction,
+  type TransactionDetails,
+  type VoiceParsedResult,
+  type VoiceQueryIntent,
+  type VoiceTransactionIntent,
+} from './VoiceParser.js';
+import {
+  VoiceDialogue,
+  type ClarificationField,
+  type ClarificationPrompt,
+  type DraftSummary,
+  type TransactionDraft,
+} from './VoiceDialogue.js';
+import { VoiceAccountResolver, type AccountRef, type AccountResolution } from './VoiceAccountResolver.js';
+import { LLMFunctionCallingService, type LLMConversationContext } from './LLMFunctionCallingService.js';
 import { JournalEntryModel, type JournalLineInput } from '../../ledger/models/JournalEntryModel.js';
-import { AccountModel } from '../../ledger/models/AccountModel.js';
-import { PersonModel } from '../../ledger/models/PersonModel.js';
 import { ReportsModel } from '../../ledger/models/ReportsModel.js';
 import { PromptGuard } from '../security/PromptGuard.js';
-import { FinancialGuardrails } from '../security/FinancialGuardrails.js';
+import { FinancialGuardrails, type FinancialGuardrailResult } from '../security/FinancialGuardrails.js';
 import { VoiceTelemetry } from '../observability/VoiceTelemetry.js';
 import { Decimal } from '@prisma/client/runtime/library';
 
+/**
+ * The agent asked a follow-up question because the entry is missing a detail
+ */
+export interface VoiceClarificationIntent {
+  type: 'CLARIFICATION';
+  field: ClarificationField;
+  draft: DraftSummary;
+  rawText: string;
+}
+
+export interface VoiceClarification {
+  field: ClarificationField;
+  question: string;
+  options: string[];
+  draft: DraftSummary;
+}
+
+/**
+ * Where the conversation stands after this turn, so clients can show the right UI
+ */
+export interface VoiceConversationState {
+  stage: 'IDLE' | 'COLLECTING' | 'AWAITING_CONFIRMATION';
+  clarification?: VoiceClarification;
+  preview?: Record<string, unknown>;
+}
+
 export interface VoiceProcessResult {
-  intent: VoiceParsedResult;
+  intent: VoiceParsedResult | VoiceClarificationIntent;
   spokenResponse: string;
   displayTitle: string;
   data?: any;
   executed: boolean;
   needsConfirmation?: boolean;
+  needsClarification?: boolean;
+  clarification?: VoiceClarification;
+  conversation?: VoiceConversationState;
   confirmToken?: string;
   voucher?: any;
   latencyMs?: number;
 }
 
+interface EntryPlan {
+  action: TransactionAction;
+  debit: AccountRef;
+  credit: AccountRef;
+  names: { fund?: string; person?: string; category?: string };
+}
+
 interface PendingSession {
+  /** Missing for sessions stored by earlier versions, which were always previews */
+  stage?: 'COLLECTING' | 'AWAITING_CONFIRMATION';
   userId: string;
-  intent: VoiceTransactionIntent;
-  lines: JournalLineInput[];
-  debitAccountName: string;
-  creditAccountName: string;
+  draft?: TransactionDraft;
+  awaiting?: ClarificationField;
+  prompt?: ClarificationPrompt;
+  attempts?: number;
+  /** Everything the user said while building this entry */
+  sourceText?: string;
+  // Preview stage
+  intent?: VoiceTransactionIntent;
+  plan?: EntryPlan;
+  preview?: Record<string, unknown>;
+  /** Legacy previews stored resolved lines */
+  lines?: JournalLineInput[];
+  debitAccountName?: string;
+  creditAccountName?: string;
   createdAt: number;
+  updatedAt?: number;
+}
+
+const SESSION_TTL_SECONDS = 300;
+const REDIS_TIMEOUT_MS = 1500;
+const MAX_ATTEMPTS = 3;
+const CHOICE_FIELDS: ClarificationField[] = ['personChoice', 'bankChoice', 'cashChoice', 'counterpartyKind'];
+
+const CLARIFICATION_TITLES: Record<ClarificationField, string> = {
+  flow: 'Paid or Received?',
+  amount: 'Amount Needed',
+  counterparty: 'Who or What For?',
+  person: 'Contact Needed',
+  paymentMode: 'Cash or Bank?',
+  counterpartyKind: 'Person or Purpose?',
+  date: 'Entry Date',
+  personChoice: 'Which Contact?',
+  bankChoice: 'Which Bank Account?',
+  cashChoice: 'Which Cash Account?',
+};
+
+const DEFAULT_SUGGESTIONS = [
+  'What is my bank balance?',
+  'What is my net worth?',
+  'I made a withdrawal of 5000 from bank',
+  'Took 2000 from John in cash',
+  'Paid 450 for groceries from Cash',
+];
+
+function localDate(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function humanDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map((n) => parseInt(n, 10));
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function titleCase(text: string): string {
+  return text.trim().replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function sumBalances(accounts: Array<{ cachedBalance: Decimal | string | number }>): number {
+  return accounts.reduce((s, a) => s + parseFloat(a.cachedBalance.toString()), 0);
 }
 
 export class VoiceAgentService {
@@ -37,36 +142,51 @@ export class VoiceAgentService {
   private static pendingSessions = new Map<string, PendingSession>();
 
   /**
+   * Run a Redis command with a short timeout. The shared client never fails queued commands
+   * while disconnected (maxRetriesPerRequest: null, required by BullMQ), so without this a Redis
+   * outage would hang every voice request instead of falling back to memory.
+   */
+  private static async redisCall<T>(op: () => Promise<T>): Promise<T | undefined> {
+    if (!['ready', 'connect', 'connecting'].includes(redis.status)) return undefined;
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        op(),
+        new Promise<undefined>((resolve) => {
+          timer = setTimeout(() => resolve(undefined), REDIS_TIMEOUT_MS);
+        }),
+      ]);
+    } catch {
+      return undefined;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
    * Distributed pending session storage with Redis + memory fallback (5-minute TTL)
    */
   public static async getPendingSession(userId: string): Promise<PendingSession | null> {
-    try {
-      const raw = await redis.get(`voice:pending:${userId}`);
-      if (raw) {
+    const raw = await this.redisCall(() => redis.get(`voice:pending:${userId}`));
+    if (raw) {
+      try {
         return JSON.parse(raw);
+      } catch {
+        // Corrupt entry — fall back to memory
       }
-    } catch {
-      // Redis unavailable or errored — fallback to memory
     }
     return this.pendingSessions.get(userId) || null;
   }
 
   public static async setPendingSession(userId: string, session: PendingSession): Promise<void> {
     this.pendingSessions.set(userId, session);
-    try {
-      await redis.set(`voice:pending:${userId}`, JSON.stringify(session), 'EX', 300);
-    } catch {
-      // Non-fatal, local fallback is active
-    }
+    // Non-fatal on failure: the local fallback is active
+    await this.redisCall(() => redis.set(`voice:pending:${userId}`, JSON.stringify(session), 'EX', SESSION_TTL_SECONDS));
   }
 
   public static async deletePendingSession(userId: string): Promise<void> {
     this.pendingSessions.delete(userId);
-    try {
-      await redis.del(`voice:pending:${userId}`);
-    } catch {
-      // Non-fatal
-    }
+    await this.redisCall(() => redis.del(`voice:pending:${userId}`));
   }
 
   /**
@@ -82,21 +202,35 @@ export class VoiceAgentService {
 
     // 2. Atomic Redis GET & DEL via Lua script
     let redisSession: PendingSession | null = null;
-    try {
-      const raw = await redis.eval(
+    const raw = (await this.redisCall(() =>
+      redis.eval(
         "local val = redis.call('get', KEYS[1]); if val then redis.call('del', KEYS[1]) end; return val;",
         1,
         `voice:pending:${userId}`
-      ) as string | null;
-
-      if (raw) {
+      )
+    )) as string | null | undefined;
+    if (raw) {
+      try {
         redisSession = JSON.parse(raw);
+      } catch {
+        // Fallback to local memory session
       }
-    } catch {
-      // Fallback to local memory session
     }
 
     return inMemorySession || redisSession || null;
+  }
+
+  private static isExpired(session: PendingSession): boolean {
+    return Date.now() - (session.updatedAt ?? session.createdAt) > SESSION_TTL_SECONDS * 1000;
+  }
+
+  private static async getActiveSession(userId: string): Promise<PendingSession | null> {
+    const session = await this.getPendingSession(userId);
+    if (session && this.isExpired(session)) {
+      await this.deletePendingSession(userId);
+      return null;
+    }
+    return session;
   }
 
   /**
@@ -125,87 +259,14 @@ export class VoiceAgentService {
   }
 
   /**
-   * Ensure standard Cash / Bank accounts exist for the user
+   * Names and terms speech recognition should expect for this user (contacts, accounts)
    */
-  private static async getOrCreateCashBankAccount(userId: string, name: 'Cash' | 'Bank'): Promise<string> {
-    const existing = await prisma.account.findUnique({
-      where: { userId_name: { userId, name } },
-    });
-    if (existing) return existing.id;
-
-    const created = await AccountModel.create(userId, {
-      name,
-      type: 'ASSET',
-      subtype: 'CASH_BANK',
-      cashFlowCategory: 'OPERATING',
-    });
-    return created.id;
-  }
-
-  /**
-   * Ensure person and their linked PERSON account exist
-   */
-  private static async getOrCreatePersonAccount(
-    userId: string,
-    personName: string
-  ): Promise<{ personId: string; accountId: string; name: string }> {
-    const cleanName = FinancialGuardrails.sanitizeAccountName(personName);
-    const existingPeople = await PersonModel.findByName(userId, cleanName);
-
-    if (existingPeople.length > 0 && existingPeople[0].accounts.length > 0) {
-      return {
-        personId: existingPeople[0].id,
-        accountId: existingPeople[0].accounts[0].id,
-        name: existingPeople[0].name,
-      };
+  public static async getTranscriptionHints(userId: string): Promise<string[]> {
+    try {
+      return await VoiceAccountResolver.transcriptionHints(userId);
+    } catch {
+      return [];
     }
-
-    // Check if account with that name exists
-    const existingAccount = await prisma.account.findUnique({
-      where: { userId_name: { userId, name: cleanName } },
-    });
-    if (existingAccount) {
-      return {
-        personId: existingAccount.personId || '',
-        accountId: existingAccount.id,
-        name: existingAccount.name,
-      };
-    }
-
-    // Create new person + account atomically
-    const created = await PersonModel.create(userId, {
-      name: cleanName,
-      label: 'Voice Contact',
-    });
-
-    return {
-      personId: created.id,
-      accountId: created.accounts[0].id,
-      name: created.name,
-    };
-  }
-
-  /**
-   * Ensure an Expense or Income account exists
-   */
-  private static async getOrCreateCategoryAccount(
-    userId: string,
-    name: string,
-    type: 'EXPENSE' | 'INCOME'
-  ): Promise<string> {
-    const cleanName = FinancialGuardrails.sanitizeAccountName(name);
-    const existing = await prisma.account.findUnique({
-      where: { userId_name: { userId, name: cleanName } },
-    });
-    if (existing) return existing.id;
-
-    const created = await AccountModel.create(userId, {
-      name: cleanName,
-      type,
-      subtype: type === 'EXPENSE' ? 'EXPENSE_CATEGORY' : 'INCOME_CATEGORY',
-      cashFlowCategory: 'OPERATING',
-    });
-    return created.id;
   }
 
   /**
@@ -262,79 +323,111 @@ export class VoiceAgentService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. LLM INTENT PARSING & FUNCTION CALLING DISPATCH
+    // 2. CONVERSATION: answer follow-ups, interpret new requests, ask for what's missing
     // ─────────────────────────────────────────────────────────────────────────
     const textToProcess = guardCheck.sanitizedText || transcript;
-    const { parsed, llmMeta } = await LLMFunctionCallingService.interpret(
-      userId,
-      textToProcess
-    );
+    const session = await this.getActiveSession(userId);
+    const res = await this.converse(userId, textToProcess, session, execute, correlationId);
+    res.latencyMs = Date.now() - startTime;
+    return res;
+  }
+
+  /**
+   * Route one utterance given the conversation state
+   */
+  private static async converse(
+    userId: string,
+    text: string,
+    session: PendingSession | null,
+    execute: boolean,
+    correlationId: string
+  ): Promise<VoiceProcessResult> {
+    // 1. Bare yes / no ("yes", "go ahead", "cancel", "nahi")
+    const decision = VoiceParser.parseConfirmation(text);
+    if (decision) {
+      return this.handleDecision(userId, decision, text, session, execute, correlationId);
+    }
+
+    // 2. "That's wrong" / "change the amount" — ask for the new value
+    if (session?.draft) {
+      const target = VoiceParser.correctionTarget(text);
+      if (target) return this.askCorrection(userId, session, target, text);
+    }
+
+    // 3. An answer or correction for the entry being built (handled locally, no LLM round trip)
+    if (session?.draft) {
+      const updated = await this.interpretReply(userId, text, session);
+      if (updated) return this.advance(userId, updated, session, execute, text, correlationId);
+    }
+
+    // 4. Full interpretation (LLM function calling with deterministic fallback)
+    const { parsed, llmMeta } = await LLMFunctionCallingService.interpret(userId, text, this.llmContext(session));
 
     VoiceTelemetry.logEvent({
       correlationId,
       userId,
       timestamp: new Date().toISOString(),
       eventType: 'INTENT_PARSED',
-      rawTranscript: transcript,
+      rawTranscript: text,
       intentType: parsed.type,
       actionOrTarget: parsed.type === 'TRANSACTION' ? parsed.action : parsed.type === 'QUERY' ? parsed.target : undefined,
       amount: parsed.type === 'TRANSACTION' ? parsed.amount : undefined,
       details: { llmMeta },
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // 3. ROUTE TO INTENT HANDLERS
-    // ─────────────────────────────────────────────────────────────────────────
+    switch (parsed.type) {
+      case 'CONFIRMATION':
+        return this.handleDecision(userId, parsed.decision, text, session, execute, correlationId);
 
-    // 3A. Conversational Confirmation Handler ("yes" / "confirm" / "cancel")
-    if (parsed.type === 'CONFIRMATION') {
-      const res = await this.handleConfirmation(userId, parsed, correlationId);
-      res.latencyMs = Date.now() - startTime;
-      return res;
+      case 'QUERY': {
+        const res = await this.handleQuery(userId, parsed, correlationId);
+        return session ? this.withReminder(userId, res, session) : res;
+      }
+
+      case 'TRANSACTION':
+      case 'DETAILS': {
+        const details = parsed.type === 'TRANSACTION' ? (parsed.details ?? this.detailsFromIntent(parsed)) : parsed.details;
+        if (session?.draft && !VoiceDialogue.isFreshCommand(details, session.draft)) {
+          return this.advance(userId, VoiceDialogue.merge(session.draft, details), session, execute, text, correlationId);
+        }
+        return this.advance(userId, { ...details }, null, execute, text, correlationId);
+      }
+
+      default: {
+        if (session) return this.reask(userId, session, text, "Sorry, I didn't catch that.");
+        return this.unknownResponse(parsed, llmMeta.isLLMPowered);
+      }
+    }
+  }
+
+  // ─── Yes / no ────────────────────────────────────────────────────────────
+
+  private static async handleDecision(
+    userId: string,
+    decision: 'CONFIRM' | 'CANCEL',
+    text: string,
+    session: PendingSession | null,
+    execute: boolean,
+    correlationId: string
+  ): Promise<VoiceProcessResult> {
+    // "Did you mean Rahul Sharma, or a new contact?" — yes picks the suggestion, no the new contact
+    if (session?.stage === 'COLLECTING' && session.draft && session.awaiting === 'personChoice' && session.prompt?.options.length === 2) {
+      const explicitCancel = /\b(?:cancel|abort|discard|stop|forget|delete|scrap)\b/i.test(text);
+      if (decision === 'CONFIRM' || !explicitCancel) {
+        const draft = this.applyChoice(session.draft, session, 'personChoice', decision === 'CONFIRM' ? 0 : 1);
+        return this.advance(userId, draft, session, execute, text, correlationId);
+      }
     }
 
-    // 3B. Read-Only Query Handler
-    if (parsed.type === 'QUERY') {
-      const res = await this.handleQuery(userId, parsed, correlationId);
-      res.latencyMs = Date.now() - startTime;
-      return res;
+    if (decision === 'CANCEL') {
+      return this.handleConfirmation(userId, { type: 'CONFIRMATION', decision, rawText: text }, correlationId);
     }
 
-    // 3C. Transaction Handler (Double-entry voucher preview or execution)
-    if (parsed.type === 'TRANSACTION') {
-      const res = await this.handleTransaction(userId, parsed, execute, correlationId);
-      res.latencyMs = Date.now() - startTime;
-      return res;
+    if (session?.stage === 'COLLECTING') {
+      return this.reask(userId, session, text, 'I still need one more detail before I can record this.');
     }
 
-    // 3D. Unknown / Conversational Utterance Handler
-    const latencyMs = Date.now() - startTime;
-    const isConversationalAI = llmMeta?.isLLMPowered && parsed.reason;
-    const spokenResponse = isConversationalAI
-      ? parsed.reason!
-      : "I'm not sure I understood that financial request. You can say things like: 'What is my bank balance?', 'I withdrew 5000 from Bank', 'I took 2000 from John', or 'Paid 450 for groceries using Cash'.";
-
-    const displayTitle = isConversationalAI ? 'VoiceTally Assistant' : 'Query Not Understood';
-
-    return {
-      intent: parsed,
-      spokenResponse,
-      displayTitle,
-      data: {
-        answer: isConversationalAI ? parsed.reason : undefined,
-        suggestions: isConversationalAI
-          ? undefined
-          : [
-              'What is my bank balance?',
-              'What is my net worth?',
-              'I made a withdrawal of 5000 from bank',
-              'Took 2000 from John in cash',
-              'Paid 450 for groceries from Cash',
-            ],
-      },
-      executed: false,
-      latencyMs,
-    };
+    return this.handleConfirmation(userId, { type: 'CONFIRMATION', decision, rawText: text }, correlationId);
   }
 
   /**
@@ -354,6 +447,7 @@ export class VoiceAgentService {
         displayTitle: 'Transaction Cancelled',
         data: { status: 'CANCELLED' },
         executed: false,
+        conversation: { stage: 'IDLE' },
       };
     }
 
@@ -368,29 +462,43 @@ export class VoiceAgentService {
         displayTitle: 'No Pending Transaction',
         data: { status: 'NO_PENDING_SESSION' },
         executed: false,
+        conversation: { stage: 'IDLE' },
       };
     }
 
+    // Still collecting details — nothing to post yet
+    if (session.stage === 'COLLECTING') {
+      await this.setPendingSession(userId, session);
+      return this.reask(userId, session, intent.rawText, 'I still need one more detail before I can record this.');
+    }
+
     // Check session expiry (5 minutes)
-    if (Date.now() - session.createdAt > 5 * 60 * 1000) {
+    if (this.isExpired(session) || !session.intent) {
       return {
         intent,
         spokenResponse: 'The pending transaction preview has expired. Please state your transaction again.',
         displayTitle: 'Preview Expired',
         data: { status: 'EXPIRED' },
         executed: false,
+        conversation: { stage: 'IDLE' },
       };
     }
 
-    // Post pending transaction
-    const entry = await JournalEntryModel.create(userId, {
-      date: new Date(),
-      narration: session.intent.narration,
-      voucherType: session.intent.voucherType,
-      source: 'VOICE',
-      lines: session.lines,
-    });
+    let entry;
+    try {
+      entry = await this.postEntry(userId, session);
+    } catch (err: any) {
+      return {
+        intent,
+        spokenResponse: `I couldn't post that entry: ${err?.message || 'unexpected error'}. Nothing was recorded — please say the transaction again.`,
+        displayTitle: 'Posting Failed',
+        data: { status: 'POST_FAILED', error: err?.message },
+        executed: false,
+        conversation: { stage: 'IDLE' },
+      };
+    }
 
+    const posted = session.intent;
     VoiceTelemetry.logEvent({
       correlationId,
       userId,
@@ -398,38 +506,700 @@ export class VoiceAgentService {
       eventType: 'TRANSACTION_EXECUTED',
       rawTranscript: intent.rawText,
       intentType: 'TRANSACTION',
-      actionOrTarget: session.intent.action,
-      amount: session.intent.amount,
+      actionOrTarget: posted.action,
+      amount: posted.amount,
       details: { voucherId: entry.id, voucherType: entry.voucherType },
     });
 
-    const spoken = `Confirmed! Successfully recorded ${this.fmtSpoken(session.intent.amount)} ${session.intent.voucherType.toLowerCase()} voucher. Debited ${session.debitAccountName} and credited ${session.creditAccountName}.`;
+    const debitAccountName = session.debitAccountName ?? session.plan?.debit.name ?? '';
+    const creditAccountName = session.creditAccountName ?? session.plan?.credit.name ?? '';
+    const spoken = `Confirmed! Successfully recorded ${this.fmtSpoken(posted.amount)} ${posted.voucherType.toLowerCase()} voucher. Debited ${debitAccountName} and credited ${creditAccountName}.`;
 
     return {
-      intent: session.intent,
+      intent: posted,
       spokenResponse: spoken,
-      displayTitle: `${session.intent.voucherType} Voucher Posted`,
+      displayTitle: `${posted.voucherType} Voucher Posted`,
       data: {
         voucherId: entry.id,
         voucherType: entry.voucherType,
         narration: entry.narration,
-        amount: session.intent.amount,
-        formattedAmount: this.fmt(session.intent.amount),
-        debitAccount: session.debitAccountName,
-        creditAccount: session.creditAccountName,
+        amount: posted.amount,
+        formattedAmount: this.fmt(posted.amount),
+        debitAccount: debitAccountName,
+        creditAccount: creditAccountName,
         date: entry.date,
       },
       executed: true,
       voucher: entry,
+      conversation: { stage: 'IDLE' },
     };
   }
+
+  // ─── Follow-up answers ───────────────────────────────────────────────────
+
+  /**
+   * Interpret a reply while an entry is being built. Returns the updated draft,
+   * or null when the reply is something else (a question, a new transaction, gibberish).
+   */
+  private static async interpretReply(userId: string, text: string, session: PendingSession): Promise<TransactionDraft | null> {
+    const draft = session.draft!;
+    const generic = VoiceParser.parse(text);
+    // A bare "cash" or "bank account" is an answer here, not a balance query
+    const asksSomething =
+      VoiceParser.isQuestion(text) || /\b(?:balance|how\s+much|kitna|show|tell|report|worth|total|statement)\b/i.test(text);
+    if (generic.type === 'QUERY' && asksSomething) return null;
+    const genericDetails = generic.type === 'TRANSACTION' ? generic.details : generic.type === 'DETAILS' ? generic.details : undefined;
+    if (genericDetails && VoiceDialogue.isFreshCommand(genericDetails, draft)) return null;
+
+    const awaiting = session.stage === 'COLLECTING' ? session.awaiting : undefined;
+
+    // Choice questions: pick one of the offered options ("the second one", "HDFC", "Rahul Sharma")
+    if (awaiting && CHOICE_FIELDS.includes(awaiting) && session.prompt) {
+      let idx = VoiceDialogue.matchOption(text, session.prompt.options);
+      if (idx < 0 && awaiting === 'counterpartyKind') {
+        if (/\b(?:person|contact|someone|somebody|human|name|friend|relative)\b/i.test(text)) idx = 0;
+        else if (/\b(?:expense|spent|spend|purpose|category|item|thing|things|income|source|bought|purchase)\b/i.test(text)) idx = 1;
+      }
+      return idx >= 0 ? this.applyChoice(draft, session, awaiting, idx) : null;
+    }
+
+    const reply = VoiceParser.parseFollowUp(text, awaiting ?? 'any', draft.flow);
+    const update: TransactionDetails = { ...reply.details };
+
+    switch (awaiting) {
+      case 'flow':
+        if (!update.flow && session.prompt) {
+          const idx = VoiceDialogue.matchOption(text, session.prompt.options);
+          if (idx >= 0) update.flow = VoiceParser.parseFollowUp(session.prompt.options[idx], 'flow').details.flow;
+        }
+        break;
+
+      case 'paymentMode':
+        if (!update.paymentMode && session.prompt) {
+          const idx = VoiceDialogue.matchOption(text, session.prompt.options);
+          if (idx === 0) update.paymentMode = 'CASH';
+          if (idx === 1) update.paymentMode = 'BANK';
+        }
+        break;
+
+      case 'person':
+        if (!update.personName && reply.bareAnswer) {
+          update.personName = VoiceParser.sanitizePersonName(reply.bareAnswer) ?? undefined;
+        }
+        break;
+
+      case 'counterparty':
+        if (!update.personName && !update.categoryName && reply.bareAnswer) {
+          const kind = await this.classifyCounterparty(userId, reply.bareAnswer, reply.bareHint, draft.flow);
+          if (kind === 'person') update.personName = VoiceParser.sanitizePersonName(reply.bareAnswer) ?? titleCase(reply.bareAnswer);
+          else if (kind === 'category') update.categoryName = titleCase(reply.bareAnswer);
+          else return { ...VoiceDialogue.merge(draft, update), pendingCounterparty: reply.bareAnswer };
+        }
+        break;
+
+      case 'date':
+        if (!update.date && /\b(?:today|aaj|now)\b/i.test(text)) {
+          const next = { ...draft };
+          delete next.date;
+          return next;
+        }
+        break;
+    }
+
+    // A reply to a payment question that names a person and a purpose keeps both;
+    // an amount of 0 ("zero") is not an answer
+    if (update.amount === 0) delete update.amount;
+    const hasNews = Object.values(update).some((v) => v !== undefined);
+    return hasNews ? VoiceDialogue.merge(draft, update) : null;
+  }
+
+  /**
+   * Apply the option the user picked for a choice question
+   */
+  private static applyChoice(draft: TransactionDraft, session: PendingSession, field: ClarificationField, idx: number): TransactionDraft {
+    const choice = session.prompt?.choices?.[idx];
+    switch (field) {
+      case 'personChoice':
+        if (!choice) return { ...draft, chosenPerson: { name: draft.personName ?? 'Contact', isNew: true } };
+        return {
+          ...draft,
+          personName: choice.name,
+          chosenPerson: {
+            accountId: choice.id.startsWith('person:') ? undefined : choice.id,
+            personId: choice.personId,
+            name: choice.name,
+          },
+        };
+      case 'bankChoice':
+        return choice ? { ...draft, chosenBankAccount: { id: choice.id, name: choice.name } } : draft;
+      case 'cashChoice':
+        return choice ? { ...draft, chosenCashAccount: { id: choice.id, name: choice.name } } : draft;
+      case 'counterpartyKind': {
+        const word = draft.pendingCounterparty ?? '';
+        const next = { ...draft };
+        delete next.pendingCounterparty;
+        if (idx === 0) next.personName = VoiceParser.sanitizePersonName(word) ?? titleCase(word);
+        else next.categoryName = VoiceParser.canonicalCategory(word, draft.flow === 'IN' ? 'INCOME' : 'EXPENSE')?.name ?? titleCase(word);
+        return next;
+      }
+      default:
+        return draft;
+    }
+  }
+
+  /**
+   * Decide whether a free-form answer like "Rahul" or "repairs" is a person or a purpose
+   */
+  private static async classifyCounterparty(
+    userId: string,
+    answer: string,
+    hint: 'person' | 'category' | undefined,
+    flow: TransactionDraft['flow']
+  ): Promise<'person' | 'category' | 'unknown'> {
+    if (hint) return hint;
+
+    const contacts = await VoiceAccountResolver.matchPeople(userId, answer);
+    if (contacts.how === 'exact' || contacts.how === 'word') return 'person';
+
+    const type = flow === 'IN' ? 'INCOME' : 'EXPENSE';
+    const category = await VoiceAccountResolver.resolveCategory(userId, answer, type);
+    if (category.status === 'resolved' && category.ref.kind === 'existing') return 'category';
+
+    if (!VoiceParser.sanitizePersonName(answer)) return 'category';
+    // Money received usually comes from people; for payments a single unknown word could be either
+    if (flow === 'IN') return 'person';
+    if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}$/.test(answer.trim())) return 'person';
+    return 'unknown';
+  }
+
+  // ─── Building the entry ──────────────────────────────────────────────────
+
+  /**
+   * Ask for the next missing detail, or preview / post the entry when nothing is missing
+   */
+  private static async advance(
+    userId: string,
+    draft: TransactionDraft,
+    base: PendingSession | null,
+    execute: boolean,
+    text: string,
+    correlationId: string
+  ): Promise<VoiceProcessResult> {
+    const sourceText = [base?.sourceText, text].filter(Boolean).join(' | ').slice(-600);
+
+    if (draft.pendingCounterparty) {
+      return this.ask(userId, 'counterpartyKind', draft, base, text, sourceText);
+    }
+
+    const field = VoiceDialogue.nextMissingField(draft);
+    if (field) return this.ask(userId, field, draft, base, text, sourceText);
+
+    const amountCheck = FinancialGuardrails.validateAmount(draft.amount);
+    if (!amountCheck.passed) {
+      const withoutAmount = { ...draft };
+      delete withoutAmount.amount;
+      return this.ask(userId, 'amount', withoutAmount, base, text, sourceText, { prefix: amountCheck.reason });
+    }
+
+    const planned = await this.planEntry(userId, draft, sourceText);
+    if (planned.status === 'ambiguous') {
+      return this.ask(userId, planned.field, draft, base, text, sourceText, { ambiguity: planned });
+    }
+
+    return this.previewOrPost(userId, draft, planned.plan, amountCheck, execute, text, sourceText, base, correlationId);
+  }
+
+  /**
+   * Work out which ledger accounts the entry debits and credits (read-only)
+   */
+  private static async planEntry(
+    userId: string,
+    draft: TransactionDraft,
+    sourceText: string
+  ): Promise<{ status: 'ok'; plan: EntryPlan } | Extract<AccountResolution, { status: 'ambiguous' }>> {
+    const action = VoiceParser.actionFor(draft)!;
+
+    let person: AccountRef | undefined;
+    if (['RECEIVE_FROM_PERSON', 'GIVE_TO_PERSON', 'PERSON_BOUGHT', 'USER_BOUGHT'].includes(action)) {
+      const r = await VoiceAccountResolver.resolvePerson(userId, draft.personName!, draft.chosenPerson);
+      if (r.status === 'ambiguous') return r;
+      person = r.ref;
+    }
+
+    const cashSide = () => VoiceAccountResolver.resolveFund(userId, 'CASH', undefined, draft.chosenCashAccount);
+    const bankSide = () => VoiceAccountResolver.resolveFund(userId, 'BANK', draft.bankHint, draft.chosenBankAccount);
+    const modeSide = () => (draft.paymentMode === 'BANK' ? bankSide() : cashSide());
+
+    const ok = (debit: AccountRef, credit: AccountRef, names: EntryPlan['names']) => ({
+      status: 'ok' as const,
+      plan: { action, debit, credit, names },
+    });
+
+    switch (action) {
+      case 'WITHDRAWAL':
+      case 'DEPOSIT': {
+        const bank = await bankSide();
+        if (bank.status === 'ambiguous') return bank;
+        const cash = await cashSide();
+        if (cash.status === 'ambiguous') return cash;
+        return action === 'WITHDRAWAL'
+          ? ok(cash.ref, bank.ref, { fund: bank.ref.name })
+          : ok(bank.ref, cash.ref, { fund: bank.ref.name });
+      }
+      case 'RECEIVE_FROM_PERSON':
+      case 'GIVE_TO_PERSON': {
+        const fund = await modeSide();
+        if (fund.status === 'ambiguous') return fund;
+        return action === 'RECEIVE_FROM_PERSON'
+          ? ok(fund.ref, person!, { fund: fund.ref.name, person: person!.name })
+          : ok(person!, fund.ref, { fund: fund.ref.name, person: person!.name });
+      }
+      case 'PERSON_BOUGHT': {
+        const income = await VoiceAccountResolver.resolveCategory(userId, 'Sales Revenue', 'INCOME');
+        if (income.status === 'ambiguous') return income;
+        return ok(person!, income.ref, { person: person!.name, category: income.ref.name });
+      }
+      case 'USER_BOUGHT': {
+        const expense = await VoiceAccountResolver.resolveCategory(userId, draft.categoryName ?? 'Purchases', 'EXPENSE', sourceText);
+        if (expense.status === 'ambiguous') return expense;
+        return ok(expense.ref, person!, { person: person!.name, category: expense.ref.name });
+      }
+      case 'DIRECT_PAYMENT': {
+        const fund = await modeSide();
+        if (fund.status === 'ambiguous') return fund;
+        const expense = await VoiceAccountResolver.resolveCategory(userId, draft.categoryName ?? 'General Expense', 'EXPENSE', sourceText);
+        if (expense.status === 'ambiguous') return expense;
+        return ok(expense.ref, fund.ref, { fund: fund.ref.name, category: expense.ref.name });
+      }
+      case 'DIRECT_INCOME': {
+        const fund = await modeSide();
+        if (fund.status === 'ambiguous') return fund;
+        const income = await VoiceAccountResolver.resolveCategory(userId, draft.categoryName ?? 'General Income', 'INCOME', sourceText);
+        if (income.status === 'ambiguous') return income;
+        return ok(fund.ref, income.ref, { fund: fund.ref.name, category: income.ref.name });
+      }
+    }
+  }
+
+  /**
+   * Show the double-entry preview (two-step confirmation) or post directly when execute=true
+   */
+  private static async previewOrPost(
+    userId: string,
+    draft: TransactionDraft,
+    plan: EntryPlan,
+    amountCheck: FinancialGuardrailResult,
+    execute: boolean,
+    text: string,
+    sourceText: string,
+    base: PendingSession | null,
+    correlationId: string
+  ): Promise<VoiceProcessResult> {
+    const { action } = plan;
+    const amount = draft.amount!;
+    const voucherType = VoiceParser.voucherTypeFor(action);
+    const debitAccountName = plan.debit.name;
+    const creditAccountName = plan.credit.name;
+    const narration = VoiceParser.describeTransaction(action, draft, plan.names);
+
+    const intent: VoiceTransactionIntent = {
+      type: 'TRANSACTION',
+      action,
+      voucherType,
+      amount,
+      personName: plan.names.person ?? draft.personName,
+      categoryName: draft.categoryName,
+      paymentMode: draft.paymentMode ?? (action === 'WITHDRAWAL' ? 'BANK' : 'CASH'),
+      narration,
+      rawText: text,
+      details: this.detailsOf(draft),
+    };
+
+    // 5. DIRECT EXECUTION (Posting atomically)
+    if (execute) {
+      const entry = await this.postEntry(userId, { userId, intent, plan, draft, createdAt: Date.now() });
+      await this.deletePendingSession(userId);
+
+      VoiceTelemetry.logEvent({
+        correlationId,
+        userId,
+        timestamp: new Date().toISOString(),
+        eventType: 'TRANSACTION_EXECUTED',
+        rawTranscript: text,
+        intentType: 'TRANSACTION',
+        actionOrTarget: action,
+        amount,
+        details: { voucherId: entry.id, voucherType: entry.voucherType },
+      });
+
+      return {
+        intent,
+        spokenResponse: `Successfully recorded ${this.fmtSpoken(amount)} ${voucherType.toLowerCase()} voucher. Debited ${debitAccountName} and credited ${creditAccountName}.`,
+        displayTitle: `${voucherType} Voucher Posted`,
+        data: {
+          voucherId: entry.id,
+          voucherType: entry.voucherType,
+          narration: entry.narration,
+          amount,
+          formattedAmount: this.fmt(amount),
+          debitAccount: debitAccountName,
+          creditAccount: creditAccountName,
+          date: entry.date,
+        },
+        executed: true,
+        voucher: entry,
+        conversation: { stage: 'IDLE' },
+      };
+    }
+
+    // 4. PREVIEW / TWO-STEP RECONFIRMATION WORKFLOW
+    const newAccounts = [plan.debit, plan.credit]
+      .map((ref) => VoiceAccountResolver.newAccountLabel(ref))
+      .filter((n): n is { name: string; kind: string } => n !== null);
+
+    const preview: Record<string, unknown> = {
+      isPreview: true,
+      voucherType,
+      debitAccount: debitAccountName,
+      creditAccount: creditAccountName,
+      amount,
+      formattedAmount: this.fmt(amount),
+      narration,
+      warning: amountCheck.warning,
+      date: draft.date ?? localDate(),
+      isBackdated: !!draft.date,
+      newAccounts,
+      draft: VoiceDialogue.summarize(draft),
+    };
+
+    const now = Date.now();
+    await this.setPendingSession(userId, {
+      stage: 'AWAITING_CONFIRMATION',
+      userId,
+      draft,
+      intent,
+      plan,
+      preview,
+      debitAccountName,
+      creditAccountName,
+      sourceText,
+      attempts: 0,
+      createdAt: base?.createdAt ?? now,
+      updatedAt: now,
+    });
+
+    VoiceTelemetry.logEvent({
+      correlationId,
+      userId,
+      timestamp: new Date().toISOString(),
+      eventType: 'CONFIRMATION_REQUESTED',
+      rawTranscript: text,
+      intentType: 'TRANSACTION',
+      actionOrTarget: action,
+      amount,
+    });
+
+    let spoken = `I'm ready to record ${this.fmtSpoken(amount)} ${voucherType.toLowerCase()} voucher: Debiting ${debitAccountName} and Crediting ${creditAccountName}`;
+    if (draft.date) spoken += `, dated ${humanDate(draft.date)}`;
+    spoken += '.';
+    if (newAccounts.length > 0) {
+      spoken += ` ${newAccounts.map((a) => `${a.name} will be added as a new ${a.kind}`).join(', and ')}.`;
+    }
+    spoken += ' Shall I confirm and post this?';
+
+    return {
+      intent,
+      spokenResponse: spoken,
+      displayTitle: `Preview: ${voucherType} Voucher`,
+      data: preview,
+      executed: false,
+      needsConfirmation: true,
+      confirmToken: `conf_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      conversation: { stage: 'AWAITING_CONFIRMATION', preview },
+    };
+  }
+
+  /**
+   * Create any new accounts and post the balanced journal entry
+   */
+  private static async postEntry(userId: string, session: PendingSession) {
+    const intent = session.intent!;
+    let lines: JournalLineInput[];
+
+    if (session.plan) {
+      const debitId = await VoiceAccountResolver.materialize(userId, session.plan.debit);
+      const creditId = await VoiceAccountResolver.materialize(userId, session.plan.credit);
+      lines = [
+        { accountId: debitId, debitAmount: intent.amount, creditAmount: 0 },
+        { accountId: creditId, debitAmount: 0, creditAmount: intent.amount },
+      ];
+    } else {
+      lines = session.lines ?? [];
+    }
+
+    // Double-entry mathematical balance verification
+    if (!FinancialGuardrails.verifyDoubleEntryBalance(lines)) {
+      throw new Error('Transaction debit and credit lines do not balance');
+    }
+
+    return JournalEntryModel.create(userId, {
+      date: session.draft?.date ?? localDate(),
+      narration: intent.narration,
+      voucherType: intent.voucherType,
+      source: 'VOICE',
+      lines,
+    });
+  }
+
+  // ─── Asking questions ────────────────────────────────────────────────────
+
+  private static async ask(
+    userId: string,
+    field: ClarificationField,
+    draft: TransactionDraft,
+    base: PendingSession | null,
+    text: string,
+    sourceText: string,
+    opts?: { prefix?: string; ambiguity?: Extract<AccountResolution, { status: 'ambiguous' }> }
+  ): Promise<VoiceProcessResult> {
+    const contacts =
+      field === 'counterparty' || field === 'person' ? await VoiceAccountResolver.recentContacts(userId).catch(() => []) : [];
+    const prompt = VoiceDialogue.prompt(field, draft, {
+      choices: opts?.ambiguity?.choices,
+      spokenName: opts?.ambiguity?.spokenName ?? draft.personName,
+      fuzzy: opts?.ambiguity?.fuzzy,
+      contacts,
+    });
+
+    const sameQuestion = base?.stage === 'COLLECTING' && base.awaiting === field;
+    const attempts = sameQuestion ? (base?.attempts ?? 0) + 1 : 0;
+    if (attempts >= MAX_ATTEMPTS) return this.giveUp(userId, text);
+
+    const now = Date.now();
+    await this.setPendingSession(userId, {
+      stage: 'COLLECTING',
+      userId,
+      draft,
+      awaiting: field,
+      prompt,
+      attempts,
+      sourceText,
+      createdAt: base?.createdAt ?? now,
+      updatedAt: now,
+    });
+
+    VoiceTelemetry.logEvent({
+      correlationId: VoiceTelemetry.createCorrelationId(),
+      userId,
+      timestamp: new Date().toISOString(),
+      eventType: 'CLARIFICATION_REQUESTED',
+      rawTranscript: text,
+      intentType: 'CLARIFICATION',
+      actionOrTarget: field,
+      amount: draft.amount,
+    });
+
+    return this.clarificationResponse(prompt, draft, text, opts?.prefix);
+  }
+
+  private static clarificationResponse(
+    prompt: ClarificationPrompt,
+    draft: TransactionDraft,
+    text: string,
+    prefix?: string
+  ): VoiceProcessResult {
+    const summary = VoiceDialogue.summarize(draft);
+    const clarification: VoiceClarification = {
+      field: prompt.field,
+      question: prompt.question,
+      options: prompt.options,
+      draft: summary,
+    };
+    return {
+      intent: { type: 'CLARIFICATION', field: prompt.field, draft: summary, rawText: text },
+      spokenResponse: [prefix, prompt.question].filter(Boolean).join(' '),
+      displayTitle: CLARIFICATION_TITLES[prompt.field],
+      data: { needsClarification: true, ...clarification },
+      executed: false,
+      needsClarification: true,
+      clarification,
+      conversation: { stage: 'COLLECTING', clarification },
+    };
+  }
+
+  /**
+   * Repeat the pending question (or the confirmation prompt) after an unclear reply
+   */
+  private static async reask(userId: string, session: PendingSession, text: string, prefix: string): Promise<VoiceProcessResult> {
+    if (session.stage === 'COLLECTING' && session.prompt && session.draft) {
+      const attempts = (session.attempts ?? 0) + 1;
+      if (attempts >= MAX_ATTEMPTS) return this.giveUp(userId, text);
+      await this.setPendingSession(userId, { ...session, attempts, updatedAt: Date.now() });
+      return this.clarificationResponse(session.prompt, session.draft, text, prefix);
+    }
+
+    await this.setPendingSession(userId, { ...session, updatedAt: Date.now() });
+    return {
+      intent: session.intent ?? { type: 'UNKNOWN', rawText: text, reason: 'Awaiting confirmation' },
+      spokenResponse: `${prefix} Say yes to post the entry, cancel to discard it, or tell me what to change.`,
+      displayTitle: 'Waiting for Confirmation',
+      data: session.preview,
+      executed: false,
+      needsConfirmation: !!session.preview,
+      conversation: { stage: 'AWAITING_CONFIRMATION', preview: session.preview },
+    };
+  }
+
+  /**
+   * The user asked to change part of the entry without saying the new value
+   */
+  private static async askCorrection(
+    userId: string,
+    session: PendingSession,
+    target: 'amount' | 'counterparty' | 'paymentMode' | 'date' | 'any',
+    text: string
+  ): Promise<VoiceProcessResult> {
+    const draft = session.draft!;
+    const isContra = draft.flow === 'WITHDRAWAL' || draft.flow === 'DEPOSIT';
+    const source = session.sourceText ?? text;
+
+    if (target === 'amount') {
+      const next = { ...draft };
+      delete next.amount;
+      return this.ask(userId, 'amount', next, session, text, source, { prefix: 'Sure.' });
+    }
+    if (target === 'counterparty' && !isContra) {
+      const next = { ...draft };
+      delete next.personName;
+      delete next.chosenPerson;
+      if (draft.flow === 'CREDIT_SALE' || draft.flow === 'CREDIT_PURCHASE') return this.ask(userId, 'person', next, session, text, source, { prefix: 'Sure.' });
+      delete next.categoryName;
+      return this.ask(userId, 'counterparty', next, session, text, source, { prefix: 'Sure.' });
+    }
+    if (target === 'paymentMode' && (draft.flow === 'OUT' || draft.flow === 'IN')) {
+      const next = { ...draft };
+      delete next.paymentMode;
+      delete next.bankHint;
+      delete next.chosenBankAccount;
+      delete next.chosenCashAccount;
+      return this.ask(userId, 'paymentMode', next, session, text, source, { prefix: 'Sure.' });
+    }
+    if (target === 'date') {
+      return this.ask(userId, 'date', draft, session, text, source, { prefix: 'Sure.' });
+    }
+
+    if (session.stage === 'COLLECTING') return this.reask(userId, session, text, 'No problem.');
+    await this.setPendingSession(userId, { ...session, updatedAt: Date.now() });
+    return {
+      intent: session.intent ?? { type: 'UNKNOWN', rawText: text, reason: 'Correction requested' },
+      spokenResponse: 'No problem — what should I change? Tell me the correct amount, person, category, payment mode or date, or say cancel to discard it.',
+      displayTitle: 'What Should I Change?',
+      data: session.preview,
+      executed: false,
+      needsConfirmation: !!session.preview,
+      conversation: { stage: 'AWAITING_CONFIRMATION', preview: session.preview },
+    };
+  }
+
+  private static async giveUp(userId: string, text: string): Promise<VoiceProcessResult> {
+    await this.deletePendingSession(userId);
+    return {
+      intent: { type: 'UNKNOWN', rawText: text, reason: 'Too many unclear answers' },
+      spokenResponse:
+        "I'm having trouble with that entry, so I've discarded it. Please say the whole transaction in one sentence, for example: 'Paid 500 for lunch in cash'.",
+      displayTitle: 'Entry Discarded',
+      data: { status: 'ABANDONED', suggestions: DEFAULT_SUGGESTIONS },
+      executed: false,
+      conversation: { stage: 'IDLE' },
+    };
+  }
+
+  /**
+   * A query answered mid-entry keeps the entry alive and reminds the user where we were
+   */
+  private static async withReminder(userId: string, res: VoiceProcessResult, session: PendingSession): Promise<VoiceProcessResult> {
+    await this.setPendingSession(userId, { ...session, updatedAt: Date.now() });
+
+    if (session.stage === 'COLLECTING' && session.prompt && session.draft) {
+      const clarification: VoiceClarification = {
+        field: session.prompt.field,
+        question: session.prompt.question,
+        options: session.prompt.options,
+        draft: VoiceDialogue.summarize(session.draft),
+      };
+      return {
+        ...res,
+        spokenResponse: `${res.spokenResponse} Now, back to your entry: ${session.prompt.question}`,
+        needsClarification: true,
+        clarification,
+        conversation: { stage: 'COLLECTING', clarification },
+      };
+    }
+
+    const amount = session.intent?.amount;
+    return {
+      ...res,
+      spokenResponse: `${res.spokenResponse} Your ${amount !== undefined ? `${this.fmtSpoken(amount)} ` : ''}entry is still waiting — say yes to post it or cancel to discard it.`,
+      conversation: { stage: 'AWAITING_CONFIRMATION', preview: session.preview },
+    };
+  }
+
+  private static llmContext(session: PendingSession | null): LLMConversationContext | undefined {
+    if (!session?.draft) return undefined;
+    return {
+      stage: session.stage ?? 'AWAITING_CONFIRMATION',
+      draftSummary: VoiceDialogue.describe(session.draft),
+      lastQuestion: session.stage === 'COLLECTING' ? session.prompt?.question : 'Shall I confirm and post this entry?',
+      awaiting: session.stage === 'COLLECTING' ? session.awaiting : undefined,
+    };
+  }
+
+  private static detailsFromIntent(intent: VoiceTransactionIntent): TransactionDetails {
+    return {
+      flow: VoiceParser.flowForAction(intent.action),
+      amount: intent.amount || undefined,
+      personName: intent.personName,
+      categoryName: intent.categoryName,
+      paymentMode: intent.paymentMode,
+    };
+  }
+
+  private static detailsOf(draft: TransactionDraft): TransactionDetails {
+    const { flow, amount, personName, categoryName, paymentMode, bankHint, date, narration } = draft;
+    return { flow, amount, personName, categoryName, paymentMode, bankHint, date, narration };
+  }
+
+  private static unknownResponse(parsed: VoiceParsedResult, isLLMPowered: boolean): VoiceProcessResult {
+    const reason = parsed.type === 'UNKNOWN' ? parsed.reason : undefined;
+    // The model's chat reply answers questions and greetings; anything else gets the usual guidance
+    const conversational =
+      VoiceParser.isQuestion(parsed.rawText) ||
+      /^\s*(?:hi|hello|hey|namaste|namaskar|thanks|thank\s+you|good\s+(?:morning|afternoon|evening)|help)\b/i.test(parsed.rawText) ||
+      /^(?:explain|define|what's|tell\s+me)\b/i.test(parsed.rawText.trim());
+    const isConversationalAI = isLLMPowered && !!reason && conversational;
+    return {
+      intent: parsed,
+      spokenResponse: isConversationalAI
+        ? reason!
+        : "I'm not sure I understood that financial request. You can say things like: 'What is my bank balance?', 'I withdrew 5000 from Bank', 'I took 2000 from John', or 'Paid 450 for groceries using Cash'.",
+      displayTitle: isConversationalAI ? 'VoiceTally Assistant' : 'Query Not Understood',
+      data: {
+        answer: isConversationalAI ? reason : undefined,
+        suggestions: isConversationalAI ? undefined : DEFAULT_SUGGESTIONS,
+      },
+      executed: false,
+      conversation: { stage: 'IDLE' },
+    };
+  }
+
+  // ─── Queries ─────────────────────────────────────────────────────────────
 
   /**
    * Handle read-only queries (Balances, Net Worth, Profit & Loss)
    */
   private static async handleQuery(
     userId: string,
-    intent: Extract<VoiceParsedResult, { type: 'QUERY' }>,
+    intent: VoiceQueryIntent,
     correlationId: string
   ): Promise<VoiceProcessResult> {
     VoiceTelemetry.logEvent({
@@ -443,41 +1213,62 @@ export class VoiceAgentService {
     });
 
     switch (intent.target) {
-      case 'BANK_BALANCE': {
-        const bank = await prisma.account.findUnique({
-          where: { userId_name: { userId, name: 'Bank' } },
-        });
-        const balance = bank ? parseFloat(bank.cachedBalance.toString()) : 0;
-        const spoken = `Your Bank balance is ${this.fmtSpoken(balance)}.`;
+      case 'BANK_BALANCE':
+      case 'CASH_BALANCE': {
+        const isBank = intent.target === 'BANK_BALANCE';
+        const funds = await VoiceAccountResolver.fundAccounts(userId);
+        let accounts = isBank ? funds.bank : funds.cash;
+        if (isBank && intent.accountHint) {
+          const hinted = accounts.filter((a) => a.name.toLowerCase().includes(intent.accountHint!.toLowerCase()));
+          if (hinted.length > 0) accounts = hinted;
+        }
+        const balance = sumBalances(accounts);
+        const label = accounts.length === 1 ? accounts[0].name : isBank ? 'Bank' : 'Cash';
+        const breakdown = accounts.map((a) => ({
+          name: a.name,
+          balance: parseFloat(a.cachedBalance.toString()),
+          formattedBalance: this.fmt(a.cachedBalance),
+        }));
+
+        let spoken = `Your ${label} balance is ${this.fmtSpoken(balance)}.`;
+        if (accounts.length > 1) {
+          spoken = `Your total ${isBank ? 'bank' : 'cash'} balance is ${this.fmtSpoken(balance)}: ${breakdown
+            .map((b) => `${b.name} has ${this.fmtSpoken(b.balance)}`)
+            .join(', ')}.`;
+        }
+
         return {
           intent,
           spokenResponse: spoken,
-          displayTitle: 'Bank Balance',
+          displayTitle: isBank ? 'Bank Balance' : 'Cash in Hand',
           data: {
-            account: 'Bank',
+            account: label,
             type: 'ASSET',
             balance,
             formattedBalance: this.fmt(balance),
+            accounts: breakdown,
           },
           executed: true,
         };
       }
 
-      case 'CASH_BALANCE': {
-        const cash = await prisma.account.findUnique({
-          where: { userId_name: { userId, name: 'Cash' } },
-        });
-        const balance = cash ? parseFloat(cash.cachedBalance.toString()) : 0;
-        const spoken = `Your Cash balance is ${this.fmtSpoken(balance)}.`;
+      case 'CASH_AND_BANK': {
+        const { cash, bank } = await VoiceAccountResolver.fundAccounts(userId);
+        const cashTotal = sumBalances(cash);
+        const bankTotal = sumBalances(bank);
+        const total = cashTotal + bankTotal;
         return {
           intent,
-          spokenResponse: spoken,
-          displayTitle: 'Cash in Hand',
+          spokenResponse: `You have ${this.fmtSpoken(cashTotal)} in cash and ${this.fmtSpoken(bankTotal)} in the bank — ${this.fmtSpoken(total)} in total.`,
+          displayTitle: 'Cash & Bank Balance',
           data: {
-            account: 'Cash',
-            type: 'ASSET',
-            balance,
-            formattedBalance: this.fmt(balance),
+            account: 'Cash & Bank',
+            balance: total,
+            formattedBalance: this.fmt(total),
+            cash: cashTotal,
+            formattedCash: this.fmt(cashTotal),
+            bank: bankTotal,
+            formattedBank: this.fmt(bankTotal),
           },
           executed: true,
         };
@@ -509,7 +1300,7 @@ export class VoiceAgentService {
             formattedTotalAssets: this.fmt(totalAssets),
             totalLiabilities,
             formattedTotalLiabilities: this.fmt(totalLiabilities),
-            asOfDate: new Date().toISOString().split('T')[0],
+            asOfDate: localDate(),
           },
           executed: true,
         };
@@ -517,36 +1308,44 @@ export class VoiceAgentService {
 
       case 'PERSON_BALANCE': {
         const name = intent.personName || 'Contact';
-        const people = await PersonModel.findByName(userId, name);
+        const { how, people } = await VoiceAccountResolver.matchPeople(userId, name);
+        const matched = how === 'exact' || how === 'word' ? people.filter((p) => p.accounts.length > 0) : [];
 
-        if (people.length === 0 || people[0].accounts.length === 0) {
+        if (matched.length === 0) {
+          const suggestion = how === 'near' && people[0] ? ` Did you mean ${people[0].name}?` : '';
           return {
             intent,
-            spokenResponse: `No contact found for ${name}. You can add ${name} or record a transaction to create their account.`,
+            spokenResponse: `No contact found for ${name}.${suggestion} You can add ${name} or record a transaction to create their account.`,
             displayTitle: `Balance for ${name}`,
             data: { person: name, balance: 0, status: 'NOT_FOUND' },
             executed: true,
           };
         }
 
-        const person = people[0];
-        const account = person.accounts[0];
-        const balance = parseFloat(account.cachedBalance.toString());
+        const describe = (personName: string, balance: number) =>
+          balance > 0
+            ? { spoken: `${personName} owes you ${this.fmtSpoken(balance)} as a Sundry Debtor.`, role: 'Debtor (Owes You)' }
+            : balance < 0
+              ? { spoken: `You owe ${personName} ${this.fmtSpoken(Math.abs(balance))} as a Sundry Creditor.`, role: 'Creditor (You Owe)' }
+              : { spoken: `${personName}'s account is fully settled with zero balance.`, role: 'Settled (₹0)' };
 
-        let spoken = '';
-        let role = '';
-
-        if (balance > 0) {
-          spoken = `${person.name} owes you ${this.fmtSpoken(balance)} as a Sundry Debtor.`;
-          role = 'Debtor (Owes You)';
-        } else if (balance < 0) {
-          spoken = `You owe ${person.name} ${this.fmtSpoken(Math.abs(balance))} as a Sundry Creditor.`;
-          role = 'Creditor (You Owe)';
-        } else {
-          spoken = `${person.name}'s account is fully settled with zero balance.`;
-          role = 'Settled (₹0)';
+        if (matched.length > 1) {
+          const rows = matched.map((p) => {
+            const balance = sumBalances(p.accounts);
+            return { person: p.name, balance, formattedBalance: this.fmt(balance), ...describe(p.name, balance) };
+          });
+          return {
+            intent,
+            spokenResponse: `I found ${rows.length} contacts named ${name}. ${rows.map((r) => r.spoken).join(' ')}`,
+            displayTitle: `Balances for ${name}`,
+            data: { person: name, matches: rows.map(({ spoken: _s, ...r }) => r) },
+            executed: true,
+          };
         }
 
+        const person = matched[0];
+        const balance = sumBalances(person.accounts);
+        const { spoken, role } = describe(person.name, balance);
         return {
           intent,
           spokenResponse: spoken,
@@ -570,19 +1369,26 @@ export class VoiceAgentService {
         const pnl = await ReportsModel.getProfitAndLoss(userId, start, end);
 
         if (intent.target === 'EXPENSE_CATEGORY' && intent.categoryName) {
-          const match = pnl.expenseAccounts.find((item: any) =>
-            item.accountName.toLowerCase().includes(intent.categoryName!.toLowerCase())
-          );
-          const amt = match ? parseFloat(match.amount.toString()) : 0;
-          const spoken = match
-            ? `You have spent ${this.fmtSpoken(amt)} on ${match.accountName} this month.`
-            : `You have not recorded any ${intent.categoryName} expenses this month.`;
+          const category = intent.categoryName;
+          const keywords = VoiceParser.categoryKeywords(category, 'EXPENSE');
+          const matches = pnl.expenseAccounts.filter((item: any) => {
+            const accountName = item.accountName.toLowerCase();
+            return (
+              accountName.includes(category.toLowerCase()) ||
+              keywords.some((k) => new RegExp(`\\b${VoiceParser.escapeRegExp(k)}`).test(accountName))
+            );
+          });
+          const amt = matches.reduce((s: number, m: any) => s + parseFloat(m.amount.toString()), 0);
+          const spoken =
+            matches.length > 0
+              ? `You have spent ${this.fmtSpoken(amt)} on ${matches.map((m: any) => m.accountName).join(' and ')} this month.`
+              : `You have not recorded any ${category} expenses this month.`;
 
           return {
             intent,
             spokenResponse: spoken,
-            displayTitle: `${intent.categoryName} Expenses (This Month)`,
-            data: { category: intent.categoryName, amount: amt, formattedAmount: this.fmt(amt) },
+            displayTitle: `${category} Expenses (This Month)`,
+            data: { category, amount: amt, formattedAmount: this.fmt(amt), items: matches },
             executed: true,
           };
         }
@@ -653,252 +1459,15 @@ export class VoiceAgentService {
           executed: true,
         };
       }
+
+      default:
+        return {
+          intent,
+          spokenResponse: "I can't answer that question yet. Try asking about your bank or cash balance, expenses, income, net worth, or a contact's balance.",
+          displayTitle: 'Query Not Supported',
+          data: { suggestions: DEFAULT_SUGGESTIONS },
+          executed: false,
+        };
     }
-  }
-
-  /**
-   * Handle transaction mutations (With Financial Guardrails & 2-Step Confirmation)
-   */
-  private static async handleTransaction(
-    userId: string,
-    intent: Extract<VoiceParsedResult, { type: 'TRANSACTION' }>,
-    execute: boolean,
-    correlationId: string
-  ): Promise<VoiceProcessResult> {
-    // 1. Validate Amount against Financial Guardrails
-    const guardrailCheck = FinancialGuardrails.validateAmount(intent.amount);
-    if (!guardrailCheck.passed) {
-      return {
-        intent,
-        spokenResponse: guardrailCheck.reason || 'Please specify a valid positive amount for this transaction.',
-        displayTitle: 'Invalid Transaction Amount',
-        data: { error: guardrailCheck.reason },
-        executed: false,
-      };
-    }
-
-    const lines: JournalLineInput[] = [];
-    let debitAccountName = '';
-    let creditAccountName = '';
-
-    // 2. Build double-entry lines based on intent action
-    switch (intent.action) {
-      case 'WITHDRAWAL': {
-        const cashId = await this.getOrCreateCashBankAccount(userId, 'Cash');
-        const bankId = await this.getOrCreateCashBankAccount(userId, 'Bank');
-        debitAccountName = 'Cash';
-        creditAccountName = 'Bank';
-
-        lines.push(
-          { accountId: cashId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: bankId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'DEPOSIT': {
-        const bankId = await this.getOrCreateCashBankAccount(userId, 'Bank');
-        const cashId = await this.getOrCreateCashBankAccount(userId, 'Cash');
-        debitAccountName = 'Bank';
-        creditAccountName = 'Cash';
-
-        lines.push(
-          { accountId: bankId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: cashId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'RECEIVE_FROM_PERSON': {
-        const cashOrBank = intent.paymentMode === 'BANK' ? 'Bank' : 'Cash';
-        const fundAccountId = await this.getOrCreateCashBankAccount(userId, cashOrBank);
-        const person = await this.getOrCreatePersonAccount(userId, intent.personName || 'Debtor');
-
-        debitAccountName = cashOrBank;
-        creditAccountName = person.name;
-
-        lines.push(
-          { accountId: fundAccountId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: person.accountId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'GIVE_TO_PERSON': {
-        const cashOrBank = intent.paymentMode === 'BANK' ? 'Bank' : 'Cash';
-        const fundAccountId = await this.getOrCreateCashBankAccount(userId, cashOrBank);
-        const person = await this.getOrCreatePersonAccount(userId, intent.personName || 'Counterparty');
-
-        debitAccountName = person.name;
-        creditAccountName = cashOrBank;
-
-        lines.push(
-          { accountId: person.accountId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: fundAccountId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'PERSON_BOUGHT': {
-        const person = await this.getOrCreatePersonAccount(userId, intent.personName || 'Customer');
-        const incomeId = await this.getOrCreateCategoryAccount(userId, 'Sales Revenue', 'INCOME');
-
-        debitAccountName = person.name;
-        creditAccountName = 'Sales Revenue';
-
-        lines.push(
-          { accountId: person.accountId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: incomeId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'USER_BOUGHT': {
-        const person = await this.getOrCreatePersonAccount(userId, intent.personName || 'Vendor');
-        const expenseCategory = intent.categoryName || 'General Expense';
-        const expenseId = await this.getOrCreateCategoryAccount(userId, expenseCategory, 'EXPENSE');
-
-        debitAccountName = expenseCategory;
-        creditAccountName = person.name;
-
-        lines.push(
-          { accountId: expenseId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: person.accountId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'DIRECT_PAYMENT': {
-        const cashOrBank = intent.paymentMode === 'BANK' ? 'Bank' : 'Cash';
-        const fundAccountId = await this.getOrCreateCashBankAccount(userId, cashOrBank);
-        const expenseCategory = intent.categoryName || 'General Expense';
-        const expenseId = await this.getOrCreateCategoryAccount(userId, expenseCategory, 'EXPENSE');
-
-        debitAccountName = expenseCategory;
-        creditAccountName = cashOrBank;
-
-        lines.push(
-          { accountId: expenseId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: fundAccountId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-
-      case 'DIRECT_INCOME': {
-        const cashOrBank = intent.paymentMode === 'BANK' ? 'Bank' : 'Cash';
-        const fundAccountId = await this.getOrCreateCashBankAccount(userId, cashOrBank);
-        const incomeCategory = intent.categoryName || 'General Income';
-        const incomeId = await this.getOrCreateCategoryAccount(userId, incomeCategory, 'INCOME');
-
-        debitAccountName = cashOrBank;
-        creditAccountName = incomeCategory;
-
-        lines.push(
-          { accountId: fundAccountId, debitAmount: intent.amount, creditAmount: 0 },
-          { accountId: incomeId, debitAmount: 0, creditAmount: intent.amount }
-        );
-        break;
-      }
-    }
-
-    // 3. Double-entry mathematical balance verification
-    if (!FinancialGuardrails.verifyDoubleEntryBalance(lines)) {
-      return {
-        intent,
-        spokenResponse: 'Financial error: Transaction debit and credit lines do not balance.',
-        displayTitle: 'Ledger Invariant Violation',
-        data: { error: 'Debit amount must strictly equal credit amount' },
-        executed: false,
-      };
-    }
-
-    // 4. PREVIEW / TWO-STEP RECONFIRMATION WORKFLOW
-    if (!execute) {
-      // Store session in distributed cache for subsequent voice confirmation ("yes", "confirm") or button click
-      await this.setPendingSession(userId, {
-        userId,
-        intent,
-        lines,
-        debitAccountName,
-        creditAccountName,
-        createdAt: Date.now(),
-      });
-
-      VoiceTelemetry.logEvent({
-        correlationId,
-        userId,
-        timestamp: new Date().toISOString(),
-        eventType: 'CONFIRMATION_REQUESTED',
-        rawTranscript: intent.rawText,
-        intentType: 'TRANSACTION',
-        actionOrTarget: intent.action,
-        amount: intent.amount,
-      });
-
-      const confirmToken = `conf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      const spoken = `I'm ready to record ${this.fmtSpoken(intent.amount)} ${intent.voucherType.toLowerCase()} voucher: Debiting ${debitAccountName} and Crediting ${creditAccountName}. Shall I confirm and post this?`;
-
-      return {
-        intent,
-        spokenResponse: spoken,
-        displayTitle: `Preview: ${intent.voucherType} Voucher`,
-        data: {
-          isPreview: true,
-          voucherType: intent.voucherType,
-          debitAccount: debitAccountName,
-          creditAccount: creditAccountName,
-          amount: intent.amount,
-          formattedAmount: this.fmt(intent.amount),
-          narration: intent.narration,
-          warning: guardrailCheck.warning,
-        },
-        executed: false,
-        needsConfirmation: true,
-        confirmToken,
-      };
-    }
-
-    // 5. DIRECT EXECUTION (Posting atomically)
-    const entry = await JournalEntryModel.create(userId, {
-      date: new Date(),
-      narration: intent.narration,
-      voucherType: intent.voucherType,
-      source: 'VOICE',
-      lines,
-    });
-
-    this.pendingSessions.delete(userId);
-
-    VoiceTelemetry.logEvent({
-      correlationId,
-      userId,
-      timestamp: new Date().toISOString(),
-      eventType: 'TRANSACTION_EXECUTED',
-      rawTranscript: intent.rawText,
-      intentType: 'TRANSACTION',
-      actionOrTarget: intent.action,
-      amount: intent.amount,
-      details: { voucherId: entry.id, voucherType: entry.voucherType },
-    });
-
-    const spoken = `Successfully recorded ${this.fmtSpoken(intent.amount)} ${intent.voucherType.toLowerCase()} voucher. Debited ${debitAccountName} and credited ${creditAccountName}.`;
-
-    return {
-      intent,
-      spokenResponse: spoken,
-      displayTitle: `${intent.voucherType} Voucher Posted`,
-      data: {
-        voucherId: entry.id,
-        voucherType: entry.voucherType,
-        narration: entry.narration,
-        amount: intent.amount,
-        formattedAmount: this.fmt(intent.amount),
-        debitAccount: debitAccountName,
-        creditAccount: creditAccountName,
-        date: entry.date,
-      },
-      executed: true,
-      voucher: entry,
-    };
   }
 }

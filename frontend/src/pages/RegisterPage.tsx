@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+import { ThemeToggle } from '../components/common/ThemeToggle';
 import './AuthPages.css';
 
 export function RegisterPage() {
@@ -29,6 +30,7 @@ export function RegisterPage() {
 
   return (
     <div className="auth-page">
+      <ThemeToggle variant="floating" />
       <div className="auth-container">
         <div className="auth-brand">
           <div className="auth-logo">₹</div>

@@ -16,7 +16,7 @@ export interface WhatsAppBotReply {
   previewCard?: any;
   quickReplies?: string[];
   userId?: string;
-  actionTaken?: 'PREVIEW' | 'POSTED' | 'CANCELLED' | 'QUERY' | 'PAIRED' | 'UNLINKED' | 'UNKNOWN';
+  actionTaken?: 'PREVIEW' | 'POSTED' | 'CANCELLED' | 'QUERY' | 'CLARIFY' | 'PAIRED' | 'UNLINKED' | 'UNKNOWN';
 }
 
 export class WhatsAppBotService {
@@ -165,6 +165,17 @@ export class WhatsAppBotService {
       }
     }
 
+    // Follow-up question: WhatsApp allows up to 3 reply buttons
+    if (result.needsClarification && result.clarification) {
+      return {
+        to: senderPhone,
+        text: `🧾 *${result.displayTitle}*\n\n${result.spokenResponse}`,
+        quickReplies: result.clarification.options.slice(0, 3),
+        userId: user.id,
+        actionTaken: 'CLARIFY',
+      };
+    }
+
     if (result.intent.type === 'QUERY') {
       return {
         to: senderPhone,
@@ -184,6 +195,10 @@ export class WhatsAppBotService {
           `• *Debit:* ${data.debitAccount} (Dr)`,
           `• *Credit:* ${data.creditAccount} (Cr)`,
           `• *Narration:* ${data.narration}`,
+          ...(data.isBackdated ? [`• *Date:* ${data.date}`] : []),
+          ...(Array.isArray(data.newAccounts) && data.newAccounts.length > 0
+            ? [`• *New:* ${data.newAccounts.map((a: { name: string; kind: string }) => `${a.name} (${a.kind})`).join(', ')}`]
+            : []),
           `━━━━━━━━━━━━━━━━━━━━`,
           `⚠️ Double-Entry Mathematical Balance Verified (Debits = Credits).`,
           ``,

@@ -8,6 +8,7 @@ import type { CategoryItem } from '../components/analytics/CategoryDonutChart';
 import { TrendBarChart } from '../components/analytics/TrendBarChart';
 import type { MonthlyTrendItem } from '../components/analytics/TrendBarChart';
 import { RunwaySimulator } from '../components/analytics/RunwaySimulator';
+import { BarChart3, Mic, Activity } from 'lucide-react';
 import './AnalyticsPage.css';
 
 interface SummaryData {
@@ -114,7 +115,9 @@ export function AnalyticsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">📊 Financial Intelligence & Analytics</h1>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center' }}>
+            <BarChart3 size={24} style={{ marginRight: 8 }} /> Financial Intelligence & Analytics
+          </h1>
           <p className="page-subtitle">
             Interactive visual insights, cash flow rivers, and predictive runway models
           </p>
@@ -134,7 +137,7 @@ export function AnalyticsPage() {
           </div>
 
           <button className="btn btn-secondary" onClick={() => navigate('/voice')}>
-            🎙️ Voice Query
+            <Mic size={16} /> Voice Query
           </button>
         </div>
       </div>
@@ -190,7 +193,9 @@ export function AnalyticsPage() {
       <div className="analytics-section-card glass-card mb-lg">
         <div className="section-card-header">
           <div>
-            <h2 className="section-card-title">🌊 Cash Flow River (Sankey Diagram)</h2>
+            <h2 className="section-card-title" style={{ display: 'flex', alignItems: 'center' }}>
+              <Activity size={20} style={{ marginRight: 8 }} /> Cash Flow River (Sankey Diagram)
+            </h2>
             <p className="section-card-subtitle">
               Visualizing how all revenue flows into your central operating pool and disperses into expense sinks & net savings
             </p>

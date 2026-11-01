@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ledgerApi } from '../api/ledger';
+import { Plus, ArrowRight, X, AlertTriangle } from 'lucide-react';
 
 interface Account {
   id: string;
@@ -82,7 +83,7 @@ export function ChartOfAccountsPage() {
           <p className="page-subtitle">Categorized master structure for all your financial ledgers</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + New Account
+          <Plus size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> New Account
         </button>
       </div>
 
@@ -91,7 +92,7 @@ export function ChartOfAccountsPage() {
         <input
           type="text"
           className="input search-input"
-          placeholder="🔍 Search account in chart..."
+          placeholder="Search account in chart..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -152,7 +153,7 @@ export function ChartOfAccountsPage() {
                           onClick={() => navigate(`/accounts/${acc.id}/ledger`)}
                           title="Open account ledger"
                         >
-                          Ledger ➔
+                          Ledger <ArrowRight size={13} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 2 }} />
                         </button>
                       </td>
                     </tr>
@@ -170,11 +171,11 @@ export function ChartOfAccountsPage() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Create New Account</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="modal-body">
-                {error && <div className="toast-error mb-md">⚠️ {error}</div>}
+                {error && <div className="toast-error mb-md" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} /> {error}</div>}
                 <div className="form-group">
                   <label className="label">Account Name</label>
                   <input
@@ -234,7 +235,7 @@ export function ChartOfAccountsPage() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Create Account ➔
+                  Create Account <ArrowRight size={16} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 4 }} />
                 </button>
               </div>
             </form>

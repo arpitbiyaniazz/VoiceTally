@@ -466,9 +466,14 @@ describe('Production Readiness & Security Invariant Suite', { timeout: 15000 }, 
         true
       );
       expect(result.executed).toBe(false);
+      // Instead of a dead end, the agent asks for a valid amount
+      expect(result.needsClarification).toBe(true);
+      expect(result.clarification?.field).toBe('amount');
     });
 
     it('Should handle random gibberish / nonsense voice speech gracefully', async () => {
+      // Start outside any conversation (the previous test leaves its follow-up question open)
+      await VoiceAgentService.deletePendingSession(userA.id);
       const result = await VoiceAgentService.process(
         userA.id,
         'asdfghjk lqwerty zxcvbnm completely unrelated text',

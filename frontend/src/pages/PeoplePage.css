@@ -1,0 +1,65 @@
+/* People & Counterparties Page Styles */
+.people-page {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Fixed Table Layout to prevent columns from expanding or shrinking */
+.people-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 780px;
+}
+
+.people-table th,
+.people-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Column fixed percentage widths */
+.people-col-name {
+  width: 28%;
+}
+
+.people-col-label {
+  width: 18%;
+}
+
+.people-col-phone {
+  width: 18%;
+}
+
+.people-col-balance {
+  width: 18%;
+  text-align: right;
+}
+
+.people-col-status {
+  width: 18%;
+}
+
+/* Ensure filter pills have consistent, stable widths */
+.people-page .filter-pill-group {
+  display: flex;
+  gap: 2px;
+}
+
+.people-page .filter-pill {
+  min-width: 84px;
+  text-align: center;
+  justify-content: center;
+}
+
+/* Search input fixed sizing */
+.people-page .search-input {
+  width: 260px;
+  min-width: 260px;
+}
+
+/* Empty state inside fixed table */
+.people-table-empty {
+  text-align: center;
+  padding: 48px 24px;
+  background: transparent;
+}

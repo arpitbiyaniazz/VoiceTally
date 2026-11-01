@@ -9,7 +9,15 @@ export interface VoiceEventPayload {
   correlationId: string;
   userId: string;
   timestamp: string;
-  eventType: 'INPUT_RECEIVED' | 'GUARDRAIL_VIOLATION' | 'INTENT_PARSED' | 'CONFIRMATION_REQUESTED' | 'TRANSACTION_EXECUTED' | 'QUERY_EXECUTED' | 'ERROR';
+  eventType:
+    | 'INPUT_RECEIVED'
+    | 'GUARDRAIL_VIOLATION'
+    | 'INTENT_PARSED'
+    | 'CLARIFICATION_REQUESTED'
+    | 'CONFIRMATION_REQUESTED'
+    | 'TRANSACTION_EXECUTED'
+    | 'QUERY_EXECUTED'
+    | 'ERROR';
   rawTranscript: string;
   intentType?: string;
   actionOrTarget?: string;
@@ -24,6 +32,7 @@ export interface VoiceMetricsSummary {
   transactionsCount: number;
   unknownsCount: number;
   guardrailBlocks: number;
+  clarificationsRequested: number;
   confirmationsRequested: number;
   executedTransactions: number;
   avgLatencyMs: number;
@@ -36,6 +45,7 @@ export class VoiceTelemetry {
     transactionsCount: 0,
     unknownsCount: 0,
     guardrailBlocks: 0,
+    clarificationsRequested: 0,
     confirmationsRequested: 0,
     executedTransactions: 0,
     avgLatencyMs: 0,
@@ -81,6 +91,9 @@ export class VoiceTelemetry {
       case 'GUARDRAIL_VIOLATION':
         this.metrics.guardrailBlocks++;
         break;
+      case 'CLARIFICATION_REQUESTED':
+        this.metrics.clarificationsRequested++;
+        break;
       case 'CONFIRMATION_REQUESTED':
         this.metrics.confirmationsRequested++;
         break;
@@ -112,6 +125,7 @@ export class VoiceTelemetry {
       transactionsCount: 0,
       unknownsCount: 0,
       guardrailBlocks: 0,
+      clarificationsRequested: 0,
       confirmationsRequested: 0,
       executedTransactions: 0,
       avgLatencyMs: 0,

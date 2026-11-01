@@ -47,7 +47,7 @@
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--color-bg-secondary);
 }
 
 .voice-title-wrap {
@@ -71,7 +71,7 @@
 .voice-title {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -154,7 +154,7 @@
 .voice-welcome-title {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin-bottom: 6px;
 }
 
@@ -235,8 +235,8 @@
 .voice-card {
   margin-top: var(--space-sm);
   padding: var(--space-md);
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -245,7 +245,7 @@
 
 .voice-card.preview {
   border-color: rgba(245, 158, 11, 0.5);
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.08), rgba(15, 23, 42, 0.9));
+  background: var(--color-bg-secondary);
 }
 
 .voice-card-header {
@@ -299,7 +299,7 @@
   font-family: var(--font-mono);
   font-size: 1.15rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .voice-card-split {
@@ -310,7 +310,8 @@
 }
 
 .voice-card-split-item {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
 }
@@ -324,7 +325,7 @@
 .voice-card-split-item .val {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 /* Two-Step Confirmation Actions */
@@ -333,7 +334,7 @@
   gap: var(--space-sm);
   margin-top: var(--space-sm);
   padding-top: var(--space-xs);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--color-border);
 }
 
 .voice-confirm-btn {
@@ -405,7 +406,7 @@
 .voice-footer {
   padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--color-border);
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--color-bg-secondary);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -471,7 +472,7 @@
   flex: 1;
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--color-text-primary);
   padding: 8px 12px;
   font-size: 0.9rem;
   outline: none;
@@ -519,8 +520,8 @@
 }
 
 .voice-popup-dialog {
-  background: #0f172a;
-  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 520px;
@@ -547,8 +548,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
 }
 
 .voice-popup-badge-wrap {
@@ -578,7 +579,7 @@
 .voice-popup-title {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -634,8 +635,8 @@
 }
 
 .voice-popup-summary-card {
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   display: flex;
@@ -647,7 +648,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-xs);
 }
 
@@ -662,7 +663,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: var(--space-sm);
   border-radius: var(--radius-md);
 }
@@ -692,7 +694,7 @@
 .ledger-account-name {
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .voice-popup-arrow {
@@ -706,7 +708,8 @@
   gap: 8px;
   font-size: 0.82rem;
   color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   padding: 6px 10px;
   border-radius: var(--radius-sm);
 }
@@ -733,8 +736,8 @@
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.95);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
 }
 
 .voice-popup-btn {
@@ -779,4 +782,257 @@
 .voice-popup-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ─── Follow-up Questions, Draft Summary & Answer Options ────────────────── */
+
+.voice-clarify-card {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.voice-clarify-question {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+}
+
+.voice-clarify-question svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-accent);
+}
+
+.voice-draft-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.voice-draft-item {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.voice-draft-item.asking {
+  border-color: rgba(99, 102, 241, 0.55);
+}
+
+.voice-draft-item.missing {
+  border-style: dashed;
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.voice-draft-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.voice-draft-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.voice-draft-item.missing .voice-draft-value {
+  color: #f59e0b;
+}
+
+.voice-option-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.voice-option-chip {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.voice-option-chip:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.24);
+  border-color: rgba(99, 102, 241, 0.7);
+  transform: translateY(-1px);
+}
+
+.voice-option-chip.subtle {
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.voice-option-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-clarify-hint,
+.voice-suggestion-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+}
+
+.voice-suggestion-block {
+  margin-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Back-dated entries & accounts created on posting */
+.voice-preview-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.voice-preview-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.voice-preview-note.new {
+  color: #38bdf8;
+}
+
+/* Per-account breakdown in balance answers */
+.voice-query-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.voice-query-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+/* Voice answer inside the confirmation popup (the overlay covers the main mic) */
+.voice-popup-mic-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+}
+
+.voice-popup-mic-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-accent), #059669);
+  transition: all var(--transition-fast);
+}
+
+.voice-popup-mic-btn.listening {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+}
+
+.voice-popup-mic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-popup-mic-text {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.voice-popup-correction {
+  display: flex;
+  gap: 6px;
+}
+
+.voice-popup-correction-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-size: 0.84rem;
+}
+
+.voice-popup-correction-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+}
+
+.voice-popup-correction-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.voice-popup-correction-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Voice Studio: the question the assistant is waiting on */
+.voice-active-question {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.voice-active-question .voice-clarify-card {
+  margin-top: 0;
 }

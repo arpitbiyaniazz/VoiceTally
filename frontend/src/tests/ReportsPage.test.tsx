@@ -74,6 +74,45 @@ describe('UI: ReportsPage Financial Statements & Print Table', () => {
         },
       },
     });
+
+    (ledgerApi.getCashFlowStatement as any).mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          startDate: new Date('2026-09-01'),
+          endDate: new Date('2026-09-30'),
+          openingCashBalance: 50000,
+          closingCashBalance: 75000,
+          netCashFlow: 25000,
+          totalOperating: 25000,
+          totalInvesting: 0,
+          totalFinancing: 0,
+          operatingActivities: [
+            { accountName: 'Client Collections', amount: 35000 },
+            { accountName: 'Office Rent & Expenses', amount: -10000 },
+          ],
+          investingActivities: [],
+          financingActivities: [],
+        },
+      },
+    });
+
+    (ledgerApi.getTrialBalance as any).mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          asOfDate: new Date('2026-09-30'),
+          totalDebit: 150000,
+          totalCredit: 150000,
+          rows: [
+            { accountId: 'tb-1', accountName: 'Bank of India', type: 'ASSET', debitBalance: 100000, creditBalance: 0 },
+            { accountId: 'tb-2', accountName: 'Trade Receivables', type: 'ASSET', debitBalance: 50000, creditBalance: 0 },
+            { accountId: 'tb-3', accountName: 'Trade Creditors', type: 'LIABILITY', debitBalance: 0, creditBalance: 30000 },
+            { accountId: 'tb-4', accountName: 'Owner Capital', type: 'EQUITY', debitBalance: 0, creditBalance: 120000 },
+          ],
+        },
+      },
+    });
   });
 
   it('renders formal statement table with P&L header, gross profit, and net income', async () => {
@@ -164,5 +203,51 @@ describe('UI: ReportsPage Financial Statements & Print Table', () => {
     fireEvent.click(tableToggle);
 
     expect(screen.getByText('P&L (₹)')).toBeInTheDocument();
+  });
+
+  it('renders Visual BI Cards for Cash Flow tab', async () => {
+    render(
+      <BrowserRouter>
+        <ReportsPage />
+      </BrowserRouter>
+    );
+
+    const cfTab = screen.getByRole('button', { name: /Cash Flow/i });
+    fireEvent.click(cfTab);
+
+    const cardsToggle = screen.getByRole('button', { name: /Visual BI Cards/i });
+    fireEvent.click(cardsToggle);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cash & Liquidity Summary')).toBeInTheDocument();
+      expect(screen.getByText('Opening Cash & Bank')).toBeInTheDocument();
+      expect(screen.getByText('Net Cash Flow')).toBeInTheDocument();
+      expect(screen.getByText('1. Operating Activities')).toBeInTheDocument();
+      expect(screen.getByText('2. Investing Activities')).toBeInTheDocument();
+      expect(screen.getByText('3. Financing Activities')).toBeInTheDocument();
+    });
+  });
+
+  it('renders Visual BI Cards for Trial Balance tab', async () => {
+    render(
+      <BrowserRouter>
+        <ReportsPage />
+      </BrowserRouter>
+    );
+
+    const tbTab = screen.getByRole('button', { name: /Trial Balance/i });
+    fireEvent.click(tbTab);
+
+    const cardsToggle = screen.getByRole('button', { name: /Visual BI Cards/i });
+    fireEvent.click(cardsToggle);
+
+    await waitFor(() => {
+      expect(screen.getByText('Trial Balance Equation')).toBeInTheDocument();
+      expect(screen.getByText('Total Debit Balance (Dr)')).toBeInTheDocument();
+      expect(screen.getByText('Total Credit Balance (Cr)')).toBeInTheDocument();
+      expect(screen.getByText('Parity Difference')).toBeInTheDocument();
+      expect(screen.getByText('Debit Balances (Dr)')).toBeInTheDocument();
+      expect(screen.getByText('Credit Balances (Cr)')).toBeInTheDocument();
+    });
   });
 });

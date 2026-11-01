@@ -1,5 +1,16 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ledgerApi, type VoucherPayload } from '../api/ledger';
+import {
+  CreditCard,
+  Wallet,
+  Landmark,
+  BookOpen,
+  Calendar,
+  Zap,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 import './VoucherEntryPage.css';
 
 type VoucherType = 'PAYMENT' | 'RECEIPT' | 'CONTRA' | 'JOURNAL';
@@ -17,39 +28,70 @@ interface JournalLine {
   creditAmount: string;
 }
 
-const VOUCHER_DESCRIPTIONS: Record<VoucherType, { title: string; desc: string; icon: string; tag: string }> = {
+const VOUCHER_DESCRIPTIONS: Record<VoucherType, { title: string; desc: string; icon: React.ReactNode; tag: string }> = {
   PAYMENT: {
     title: 'Payment Voucher',
     desc: 'Money Out — Record payments for expenses, bills, or creditors',
-    icon: '💸',
+    icon: <CreditCard size={24} />,
     tag: 'Expense / Outflow',
   },
   RECEIPT: {
     title: 'Receipt Voucher',
     desc: 'Money In — Record collections, sales, income, or debtor returns',
-    icon: '💰',
+    icon: <Wallet size={24} />,
     tag: 'Income / Inflow',
   },
   CONTRA: {
     title: 'Contra Voucher',
     desc: 'Internal Transfer — Transfer money between Cash & Bank accounts',
-    icon: '🏦',
+    icon: <Landmark size={24} />,
     tag: 'Cash & Bank Move',
   },
   JOURNAL: {
     title: 'Journal Entry',
     desc: 'Double-Entry — Multi-account adjustments with balanced debits & credits',
-    icon: '📒',
+    icon: <BookOpen size={24} />,
     tag: 'General Ledger',
   },
 };
 
 export function VoucherEntryPage() {
-  const [voucherType, setVoucherType] = useState<VoucherType>('PAYMENT');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawType = searchParams.get('type')?.toUpperCase();
+  const initialType: VoucherType =
+    rawType === 'PAYMENT' || rawType === 'RECEIPT' || rawType === 'CONTRA' || rawType === 'JOURNAL'
+      ? rawType
+      : 'PAYMENT';
+
+  const [voucherType, setVoucherType] = useState<VoucherType>(initialType);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  // Synchronize tab state with ?type= URL query parameter changes
+  useEffect(() => {
+    const currentParam = searchParams.get('type')?.toUpperCase();
+    if (
+      currentParam &&
+      (currentParam === 'PAYMENT' || currentParam === 'RECEIPT' || currentParam === 'CONTRA' || currentParam === 'JOURNAL')
+    ) {
+      if (currentParam !== voucherType) {
+        setVoucherType(currentParam);
+        resetForm();
+        setError('');
+        setSuccess('');
+      }
+    }
+  }, [searchParams]);
+
+  const selectVoucherType = (type: VoucherType) => {
+    setVoucherType(type);
+    setSearchParams({ type }, { replace: true });
+    resetForm();
+    setError('');
+    setSuccess('');
+  };
 
   // Common fields
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -193,11 +235,7 @@ export function VoucherEntryPage() {
             <div
               key={type}
               className={`voucher-type-card glass-card glass-card-interactive ${isSelected ? 'active ' + type.toLowerCase() : ''}`}
-              onClick={() => {
-                setVoucherType(type);
-                setError('');
-                setSuccess('');
-              }}
+              onClick={() => selectVoucherType(type)}
             >
               <div className="voucher-card-top">
                 <span className="voucher-card-icon">{info.icon}</span>
@@ -217,15 +255,15 @@ export function VoucherEntryPage() {
         </div>
       )}
       {error && (
-        <div className="toast-error mb-md" style={{ padding: '14px 18px', borderRadius: 'var(--radius-md)' }}>
-          ⚠️ {error}
+        <div className="toast-error mb-md" style={{ padding: '14px 18px', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangle size={18} /> {error}
         </div>
       )}
 
       {/* Transaction Entry Form */}
       <form className="voucher-form-container glass-card" onSubmit={handleSubmit}>
-        <div className="form-section-title">
-          <span>📅</span> Transaction Details
+        <div className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Calendar size={18} /> Transaction Details
         </div>
 
         <div className="form-row">
@@ -327,7 +365,9 @@ export function VoucherEntryPage() {
             {amount && cashAccountId && counterAccountId && (
               <div className="voucher-preview-card glass-card mt-lg">
                 <div className="preview-header">
-                  <span className="preview-title">⚡ Live Ledger Impact Preview</span>
+                  <span className="preview-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={16} /> Live Ledger Impact Preview
+                  </span>
                   <span className="badge badge-journal">Debits = Credits: ₹{parseFloat(amount).toFixed(2)}</span>
                 </div>
                 <div className="data-table-wrapper">
@@ -428,7 +468,9 @@ export function VoucherEntryPage() {
             {amount && fromAccountId && toAccountId && (
               <div className="voucher-preview-card glass-card mt-lg">
                 <div className="preview-header">
-                  <span className="preview-title">⚡ Live Contra Transfer Preview</span>
+                  <span className="preview-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={16} /> Live Contra Transfer Preview
+                  </span>
                   <span className="badge badge-contra">₹{parseFloat(amount).toFixed(2)} Transfer</span>
                 </div>
                 <div className="data-table-wrapper">
@@ -541,7 +583,7 @@ export function VoucherEntryPage() {
                           disabled={journalLines.length <= 2}
                           title="Remove line"
                         >
-                          ✕
+                          <X size={16} />
                         </button>
                       </td>
                     </tr>
